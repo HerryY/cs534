@@ -216,8 +216,8 @@ def train(data, reg = 0.01, stepSize = 0.1, epsilon = 0.0001, printScores = Fals
 
 
         # Print the current scores if instructed to
-        if printScores:
-            print iterationIdx, "   L1 = ", L1, "     L1/|mean| = ", (L1 / yMean), "    L2 = ", L2 ,"    rSSE = ", rSSE
+        #if printScores:
+        #    print iterationIdx, "   L1 = ", L1, "     L1/|mean| = ", (L1 / yMean), "    L2 = ", L2 ,"    rSSE = ", rSSE
         
         # if we are provided test data, print their current scores too
         if testData is not None:
@@ -235,7 +235,9 @@ def train(data, reg = 0.01, stepSize = 0.1, epsilon = 0.0001, printScores = Fals
 
         # decide if we have converged by seeing if the L1 norm of the gradient id close to zero
         converged =  L2Change  < (epsilon)
-        
+        if(converged or diverged): 
+            print iterationIdx, "   L1 = ", L1, "     L1/|mean| = ", (L1 / yMean), "    L2 = ", L2 ,"    rSSE = ", rSSE 
+    
 
     return w
 
@@ -282,7 +284,7 @@ def part2(trainingData, testData):
     print "reg,     avg l1 error,   avg l2 error,      regularized SSE"
 
     regs = [0];
-    for pw in range(-12,6):
+    for pw in range(-12,8):
         regs.append(pow(2,pw))
 
     for reg in regs:
@@ -381,5 +383,5 @@ def main():
 
 
 
-if __name__ == '__main__':
-    main();
+#if __name__ == '__main__':
+#    main();
