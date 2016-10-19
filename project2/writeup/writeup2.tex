@@ -1,4 +1,6 @@
 \documentclass[]{article}
+\usepackage{tikz}
+
 
 %opening
 \title{CS534 — Implementation Assignment 2 \\ \small Due Oct 18th 11:59PM, 2016}
@@ -61,7 +63,7 @@
 	 	\end{tabular} 
 	 \end{center}
 	
-	 Using the Multinomial model,  Hillary's tweets were confused $8.0\%$ of the time, Trump's were confused $8.7\%$ of the time.
+	 Using the Multinomial model,  Hillary's tweets were confused $5.0\%$ of the time, Trump's were confused $6.8\%$ of the time.
 	 \begin{center}
 		 	\begin{tabular}{|r|c|c|}\hline
 		 		\multicolumn{1}{|c|}{predicted} & \multicolumn{2}{c|}{true label $y$}\\ \cline{2-3}
@@ -99,6 +101,9 @@
 \end{enumerate}
 
 \section{Priors and overfitting:}
+
+\includegraphics[scale=0.5]{plot.pdf}
+
 
 
 Applying Multinomial Model with prior =1e-05\\
@@ -139,9 +144,9 @@ Trump       16  302
 
 \section{Identifying important features:}
 
-We chose two techniques. For we found a list of words online that contain ``less information. For example, the words ``a", ``the", ``i" are one this list. The idea is that these words are so common that they are bad features. However, we found that this significantly hurts the classification accuracy and only increases the running performance marginally. 
+We chose two techniques. First we found a list of words online that contain ``less information". For example, the words ``a", ``the", ``i" are on this list. The idea is that these words are so common that they are bad features. However, we found that this significantly hurts the classification accuracy and only increases the running time performance marginally. 
 
-Our second approach was to only keep the top $n$ most used words from with class. This technique used pretty well. When keeping 1,000 out of the approximate 11,000 words, our classifiers decreased in accuracy by 1 percent but ran much faster. 
+Our second approach was to only keep the top $n$ most used words from each class. This technique worked pretty well. When keeping 1,000 out of the approximate 11,000 words, our classifiers decreased in accuracy by 1 percent but ran much faster. 
 
 If we were to continue investigating feature selection, we would look into mutual information, and the chi squared tests. 
 

@@ -4,6 +4,7 @@ import inspect
 import math
 import operator
 from collections import defaultdict
+import os.path
 
 traintweet = "clintontrump.tweets.train"
 trainlabel = "clintontrump.labels.train"
@@ -56,19 +57,33 @@ def advancedCleanup(word):
 # parse label-tweet list from a tweet file and a label file
 def parseLabelTweetList(tweetfile, labelfile):
     map = []
-    lf = open(labelfile, "r")
-    countline = 0
-    for line in lf.readlines():
-        countline += 1
-        map.append([line.strip()])
-    lf.close
+    
+    lfExists = os.path.isfile(labelfile) 
+
+    if(lfExists):
+        lf = open(labelfile, "r")
+        countline = 0
+        for line in lf.readlines():
+            countline += 1
+            map.append([line.strip()])
+        lf.close
+    else:
+        print "\n\n\n --------- WARNING --------- \n\n"
+        print "can't find ",labelfile,"\n Defaulting to all realDonaldTrump\n\n\n"
+    
     countline = 0
     ff = open(tweetfile, "r")
     for line in ff.readlines():
         countline += 1
+
+        if(lfExists == False):
+            map.append(["realDonaldTrump"])
+
         map[countline - 1].append(line.strip())
  #   print("feature file length: ", countline)
     ff.close
+
+
     return map
  
 
@@ -142,7 +157,7 @@ def leastUsedStopWords(topCount = 1000):
 
 
 
-def bernoulliBayes(verbose=True, advanceWordProcess=False, prior=1.0):
+def bernoulliBayes(verbose=True, advanceWordProcess=False, prior=1.0, outputFile = "BernoulliResults.txt"):
     """
     Training the classifier with Bernoulli Bayes model
     
@@ -274,7 +289,9 @@ def bernoulliBayes(verbose=True, advanceWordProcess=False, prior=1.0):
 
 
 
-
+        
+    if outputFile != "":
+        outfile = open(outputFile,"w")
         
     clintonCorrect = 0
     clintonIncorrect = 0
@@ -330,7 +347,11 @@ def bernoulliBayes(verbose=True, advanceWordProcess=False, prior=1.0):
                trumploglikelihood += math.log(1 - trumpWordProb[word])
 
 
-
+        if outfile != None:
+            if clintonloglikelihood > trumploglikelihood:
+                outfile.write("HillaryClinton\n")
+            else:
+                outfile.write("realDonaldTrump\n")
 
         if label == "HillaryClinton":
             #print("Clinton prediction is correct")
@@ -381,7 +402,7 @@ def bernoulliBayes(verbose=True, advanceWordProcess=False, prior=1.0):
     
     
      
-def multinomialbayes(verbose=True, advanceWordProcess=False, prior=1.0):
+def multinomialbayes(verbose=True, advanceWordProcess=False, prior=1.0, outputFile = "multinomialResults.txt"):
     """
     Training the classifier with Multinomial Bayes model
     
@@ -455,6 +476,8 @@ def multinomialbayes(verbose=True, advanceWordProcess=False, prior=1.0):
     
 
 
+    if outputFile != "":
+        outfile = open(outputFile,"w")
 
 
                 
@@ -507,8 +530,15 @@ def multinomialbayes(verbose=True, advanceWordProcess=False, prior=1.0):
                 else:
                     trumploglikelihood += math.log(prior / (totalTrumpWords * 1.0 + len(vocab) * prior))  
                     
-                    
-                    
+
+
+        if outfile != None:
+            if clintonloglikelihood > trumploglikelihood:
+                outfile.write("HillaryClinton\n")
+            else:
+                outfile.write("realDonaldTrump\n")
+            
+                        
         if label == "HillaryClinton":
             #print("Clinton prediction is correct")
             if clintonloglikelihood > trumploglikelihood:
@@ -516,6 +546,7 @@ def multinomialbayes(verbose=True, advanceWordProcess=False, prior=1.0):
                 clintonCorrect += 1
             else:
                 clintonIncorrect += 1
+                 
         else: # label == "realDonaldTrump"
 
             if clintonloglikelihood < trumploglikelihood:
@@ -524,6 +555,8 @@ def multinomialbayes(verbose=True, advanceWordProcess=False, prior=1.0):
             else:
                 trumpIncorrect += 1          
 
+            if outfile != None:
+                outfile.write("realDonaldTrump\n")
 
     print("Prediction accuracy:")
     print(predCorrectCount / totalpred)    
@@ -573,7 +606,7 @@ def main():
     for log_alpha in range(-5,1):
         alpha = math.pow(10, log_alpha)
         print("Applying Bernoulli Model with prior =" + str(alpha))
-        bernoulliBayes(verbose = False, prior = alpha)
+        bernoulliBayes(verbose = False, prior = alpha, outputFile = ("BernoulliResult_alpha"+str(alpha)+".txt"))
     
         
     print ''
@@ -583,7 +616,7 @@ def main():
     for log_alpha in range(-5,1):
         alpha = math.pow(10, log_alpha)
         print("Applying Multinomial Model with prior =" + str(alpha))
-        multinomialbayes(verbose = False, prior = alpha)
+        multinomialbayes(verbose = False, prior = alpha, outputFile = ("MultinomialResult_alpha"+str(alpha)+".txt"))
 
 
 
@@ -593,7 +626,7 @@ def main():
     print("Importing stop-words")
 
     #parseStopwords(stopwordsfile)
-    leastUsedStopWords()
+    leastUsedStopWords(10)
     vocab.clear()
     #parseVocabulary(traintweet, advanceWordProcess = True)
     
@@ -603,13 +636,13 @@ def main():
     print "=======================================================\n"
     
     
-    bernoulliBayes(verbose = True, advanceWordProcess = True)
+    bernoulliBayes(verbose = True, advanceWordProcess = True,outputFile = ("BernoulliResult_smallVocab.txt"))
     print "\n======================================================="
     print "              Part 3(b): Applying Multinomial Model with stopwords removal....."
     print "=======================================================\n"
     
     
-    multinomialbayes(verbose = False, advanceWordProcess = False)
+    multinomialbayes(verbose = False, advanceWordProcess = False,outputFile = ("MultinomialResult_smallVocab.txt"))
     return 0    
 
 
