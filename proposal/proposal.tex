@@ -1,0 +1,29 @@
+\documentclass[]{scrartcl}
+
+%opening
+\title{Lart - Laplace Additive Regression Trees\\ \vspace{0.4cm}
+	\large CS534 Final Project Proposal}
+\author{Peter Rindal, Hung Viet Le and Trung Viet Vu}
+
+\begin{document}
+
+\maketitle
+
+%\begin{abstract}
+%\end{abstract}
+Mart \cite{friedman2003multiple} is a decision tree algorithm which leverages gradient boosting to increase its robustness. Gradient boosting is a general machine learning techniques for both regression and classification tasks. The resulting model forms an ensemble of weak predictive models, in this case decision trees.   The Mart algorithm is known to give highly accurate predictions\cite{rashmi2015dart}, and is widely used in practice. Despite it's success, the Mart algorithm can suffer from over-fitting, where the learned model does not generalize well to unseen data.
+
+We propose a method called Lart to mitigate this by randomizing the learning process with the use of laplace noise. Our main contribution is a method for selecting predicates in the individual trees using a noisy process. Instead of selecting the predicate that minimizes the loss function, we sample a predicate such that a greater reduce in the loss function results in it being exponentially more likely to be selected. This will be achieved by sampling appropriately scaled laplace variables and adding them to each of the loss function calculations. The predicate with the greatest loss reduction plus laplace noise will be selected. In this way, predicates that are significantly better than the others will be sampled more often.
+
+In this experiment there will be several hyper parameters. Most interesting will be how to scale this laplace distribution. When the laplace distribution is scaled by too much, the noise will drown out the contribution that the loss function may have, in effect resulting in the random forest algorithm. On the other hand, when the laplace variable is too small, the loss function will dominate and effectively result in the original Mart algorithm. Tuning this parameter will be a major point of investigation for this work. Additionally, we will also need to tune the traditional parameters such as learning rate. Examining the interaction of these parameters will also be a point of investigation.
+
+To test the effectiveness of Lart, we propose to implement it along with other Mart techniques such as {shrinkage}\cite{sun2014convergence}, and {dropout}\cite{rashmi2015dart}. We will investigate this technique with respect to the L2 loss function. We will use 10-fold cross validation with datasets that previous papers have used, namely the regression CT scan dataset at UCI and the classification dataset  from the Pascal Large Scale Learning Challenge.
+
+
+%\section{}
+
+
+\bibliography{proposal}{}
+\bibliographystyle{plain}
+
+\end{document}
