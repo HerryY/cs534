@@ -7,10 +7,6 @@
 #include <fstream>
 
 #include "BoostedMLTree.h"
-#include "DiffPrivMedian.h"
-
-#include "PlainQueryOracle.h"
-#include "DiffPrivQueryOracle.h"
 
 #include <string>
 #include <sstream>
@@ -145,9 +141,9 @@ void MLTreeCTScanDP(int ii)
         leafEpsilon{ /*1,0.1,*/0.01,/*0.025,0.01,0.005,0.0025,0.001 *//*,0.01*/ },
         numTrees{ /*50,100,*/200/*,500 */ },
         depths{ /*2,4,*/20/*,100*/ },
-        minSplits{/* 2000,1000,*/1/*, 250 */ };
+        minSplits{/* 2000,1000,*/20/*, 250 */ };
 
-    YType maxValue = 50,
+    double maxValue = 50,
         minYValue = 50;
 
     int i = 0;
@@ -162,8 +158,6 @@ void MLTreeCTScanDP(int ii)
 
                             if (i++ == ii || ii == -1)
                             {
-                                //DiffPrivQueryOracle qq(epsilon, epsilonLeaf, maxValue, minYValue, depth, minSplitSize, numTree);
-                                PlainQueryOracle qq(depth, minSplitSize);
                                 BoostedMLTree tree;
 
                                 std::vector<DbTuple> evalData, data, d2;
@@ -193,7 +187,7 @@ void MLTreeCTScanDP(int ii)
                                     << w << depth << w << minSplitSize;
 
 
-                                tree.learn(data, qq, numTree, learningRate, &evalData);
+                                tree.learn(data, numTree, learningRate,depth, minSplitSize, &evalData);
                             }
                         }
                     }

@@ -6,8 +6,7 @@
 #include <atomic>
 
 MLTree::MLTree()
-    :
-    mDepth(0)
+    :mDepth(0)
 {
 }
 
@@ -22,13 +21,10 @@ MLTree::~MLTree()
 
 
 
-void MLTree::learn(
-    std::vector<DbTuple>& db,
-    QueryOracle& qo)
+void MLTree::learn(std::vector<DbTuple>& db, u64 depth, u64 split)
 {
-    YType ySumInit(0);
-    u64 setSize = db.size();
-
+    mMaxDepth = depth;
+    mMinSplitSize = split;
 
     mDepth = 0;
     mNodeCount = 1;
@@ -39,27 +35,13 @@ void MLTree::learn(
     root.mRows.resize(db.size());
     for (u64 i = 0; i < db.size(); ++i)
     {
-        //for (u64 i = 0; i < preds.size(); ++i)
-        {
-            auto& y = db[i].mValue;
+        auto& y = db[i].mValue;
 
-
-            ySumInit += y;
-        }
         root.mRows[i] = &db[i];
     }
 
 
-    // compute the loss for the root node. i.e. compute
-    // the mean squared error over the whole dataset.
-    qo.init(ySumInit, root.mRows.size());
-
-
-
     u64 predSize = db[0].mPreds.size();
-
-
-
 
     nextList.push_back(&root);
 
@@ -71,7 +53,7 @@ void MLTree::learn(
     bool thisThreadOutOfWork = false;
 
 
-    YType splitSize(2);
+    double splitSize(2);
     TreeNode* cur = nullptr;
 
     while (nextList.size())
@@ -91,28 +73,12 @@ void MLTree::learn(
             u[1].mYSum = 0;
         }
 
-        auto startIdx = 0;// cur->mRows.size() / 20;
-        auto endIdx = cur->mRows.size();// *19 / 20;
-
-        auto minY = cur->mRows[startIdx]->mValue;
-        auto maxY = cur->mRows[endIdx - 1]->mValue;
-
-        splitSize =
-            std::max(
-                std::abs(minY),
-                std::abs(maxY)
-            );
-
-        splitSize = 50;
-
 
         for (auto j = 0; j < cur->mRows.size(); ++j)
         {
             auto& row = cur->mRows[j];
 
-            auto y = row->mValue;//
-
-            //std::cout<< "    " << j << "   " << row->mValue << "  ->  " << y << std::endl;
+            auto y = row->mValue;
 
             for (u64 i = 0; i < predSize; ++i)
             {
@@ -125,12 +91,8 @@ void MLTree::learn(
         }
 
         // split the current node with preds[i]
+        cur->mPredIdx = getNextSplit(updates, cur);
 
-        t.setTimePoint("splitStart " + std::to_string((u16)this));
-
-        cur->mPredIdx = qo.getNextSplit(updates, cur->mIdx, splitSize);
-
-        t.setTimePoint("splitDone " + std::to_string((u16)this));
 
         //std::cout<< Log::lock << cur->mIdx << "\t" << (i64)cur->mPredIdx << std::endl << Log::unlock;
 
@@ -177,44 +139,66 @@ void MLTree::learn(
             // this node should not be split any more...
         }
         t.setTimePoint("nodeDone " + std::to_string((u16)this));
-
-
     }
 
 
-    double totalError(0), averageL1Error(0);
-    double averageLeaf(0);
+    std::vector<double> leafVals;
 
-    std::vector<YType> leafVals;
-    bool hasMoreLeaves = true;
-
-    //for (auto cur : leafNodes)
-    while (hasMoreLeaves)
+    while (mLeafNodes.size())
     {
-        TreeNode* cur = nullptr;
+        TreeNode* cur = mLeafNodes.back();
+        mLeafNodes.pop_back();
 
-        if (mLeafNodes.size())
+        double  sum = 0;
+
+        leafVals.resize(cur->mRows.size());
+        for (auto i = 0; i < cur->mRows.size(); ++i)
         {
-            cur = mLeafNodes.back();
-            mLeafNodes.pop_back();
+            sum  += cur->mRows[i]->mValue;
         }
 
-        if (hasMoreLeaves = cur)
+        cur->mValue = sum / cur->mRows.size();
+    }
+}
+
+
+u64 MLTree::getNextSplit(
+    const std::vector<std::array<splitUpdate, 2>>& updates,
+    TreeNode* mNode)
+{
+
+
+    u64 bestIdx = -1;
+
+    i64 bestGain = 99999999999999;
+
+
+    if (mNode->mDepth < mMaxDepth)
+    {
+        for (u64 i = 0; i < updates.size(); ++i)
         {
-            leafVals.resize(cur->mRows.size());
-            for (auto i = 0; i < cur->mRows.size(); ++i)
+            if (updates[i][0].mSize > mMinSplitSize &&
+                updates[i][1].mSize > mMinSplitSize)
             {
-                leafVals[i] = cur->mRows[i]->mValue;
+
+
+                i64 gain
+                    = -(i64)updates[i][0].mYSum * (i64)updates[i][0].mYSum / (i64)updates[i][0].mSize
+                    + -(i64)updates[i][1].mYSum * (i64)updates[i][1].mYSum / (i64)updates[i][1].mSize
+                    ;
+
+                if (gain < bestGain)
+                {
+                    bestGain = gain;
+                    bestIdx = i;
+                }
             }
-
-            cur->mValue = qo.getNextLeafValue(leafVals, cur->mIdx);
-            averageLeaf += cur->mValue;
         }
-
     }
 
-
+    return bestIdx;
 }
+
 
 void MLTree::test(
     std::vector<DbTuple>& testData)
@@ -280,7 +264,11 @@ void MLTree::test(
 
 }
 
-YType MLTree::evaluate(const DbTuple & row)
+
+
+
+
+double MLTree::evaluate(const DbTuple & row)
 {
     TreeNode* cur = &root;
 

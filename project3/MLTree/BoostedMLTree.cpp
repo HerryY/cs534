@@ -2,7 +2,6 @@
 
 #include "MLTree.h"
 
-#include "DiffPrivQueryOracle.h"
 #include <fstream>
 #include <numeric>
 BoostedMLTree::BoostedMLTree()
@@ -16,16 +15,17 @@ BoostedMLTree::~BoostedMLTree()
 
 void BoostedMLTree::learn(
     std::vector<DbTuple>& myDB,
-    QueryOracle & qo,
     u64 numTrees,
     double learningRate,
+    u64 maxDepth,
+    u64 minSplit,
     std::vector<DbTuple>* evalData)
 {
     mLearningRate = learningRate;
     mTrees.reset(new MLTree[numTrees]);
 
     mNumTrees = numTrees;
-    YType maxY(9999);
+    double maxY(9999);
 
     double runningNoise(0), runningOpt(0), runningSplitPercentile(0), runningSize(0);
 
@@ -45,7 +45,7 @@ void BoostedMLTree::learn(
     {
 
         // learn a  simple decision tree
-        mTrees[treeIdx].learn(*db, qo);
+        mTrees[treeIdx].learn(*db, maxDepth, minSplit);
 
 
         // now subtract off learningRate * prediction from our labels.
@@ -70,7 +70,7 @@ void BoostedMLTree::learn(
             // compute the predictions for each eval example.
             // Compute the L1, L2, and max error.
 
-            u64 YSq = 0, YSum = 0;
+            double YSq = 0, YSum = 0;
             maxY = 0;
             for (u64 i = 0; i < evalData->size(); i++)
             {
@@ -154,10 +154,10 @@ void BoostedMLTree::test(
     }
 }
 
-YType BoostedMLTree::evaluate(const DbTuple & data)
+double BoostedMLTree::evaluate(const DbTuple & data)
 {
 
-    YType y = 0;
+    double y = 0;
     for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
     {
         auto yprime = mTrees[treeIdx].evaluate(data);

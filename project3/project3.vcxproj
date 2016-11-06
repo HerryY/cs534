@@ -90,16 +90,12 @@
     <ClCompile Include="Common\Timer.cpp" />
     <ClCompile Include="Crypto\PRNG.cpp" />
     <ClCompile Include="MLTree\BoostedMLTree.cpp" />
-    <ClCompile Include="MLTree\DiffPrivMedian.cpp" />
-    <ClCompile Include="MLTree\DiffPrivQueryOracle.cpp" />
     <ClCompile Include="MLTree\Laplace.cpp" />
     <ClCompile Include="MLTree\MLTreeMain.cpp" />
-    <ClCompile Include="MLTree\PlainQueryOracle.cpp" />
     <ClCompile Include="Util\CLP.cpp" />
     <ClCompile Include="MLTree\TreeNode.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MLTree\MLTree.cpp" />
-    <ClCompile Include="MLTree\QueryOracle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\ArrayView.h" />
@@ -113,15 +109,11 @@
     <ClInclude Include="Crypto\PRNG.h" />
     <ClInclude Include="MLTree\BoostedMLTree.h" />
     <ClInclude Include="MLTree\CTScanData.h" />
-    <ClInclude Include="MLTree\DiffPrivMedian.h" />
-    <ClInclude Include="MLTree\DiffPrivQueryOracle.h" />
     <ClInclude Include="MLTree\Laplace.h" />
     <ClInclude Include="MLTree\MLTreeMain.h" />
-    <ClInclude Include="MLTree\PlainQueryOracle.h" />
     <ClInclude Include="Util\CLP.h" />
     <ClInclude Include="MLTree\TreeNode.h" />
     <ClInclude Include="MLTree\MLTree.h" />
-    <ClInclude Include="MLTree\QueryOracle.h" />
     <ClInclude Include="Util\ParsingTags.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

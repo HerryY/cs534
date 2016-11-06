@@ -15,10 +15,10 @@ TreeNode::~TreeNode()
 {
 }
 
-YType TreeNode::hash()
+double TreeNode::hash()
 {
 
-    YType sum = 0;
+    double sum = 0;
 
     for (auto row : mRows)
     {

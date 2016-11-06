@@ -24,13 +24,7 @@
     <ClCompile Include="MLTree\MLTree.cpp">
       <Filter>Header Files\MLTree</Filter>
     </ClCompile>
-    <ClCompile Include="MLTree\QueryOracle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Util\CLP.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MLTree\PlainQueryOracle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MLTree\MLTreeMain.cpp">
@@ -43,12 +37,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MLTree\Laplace.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MLTree\DiffPrivQueryOracle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MLTree\DiffPrivMedian.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Common\BitIterator.cpp">
@@ -74,16 +62,10 @@
     <ClInclude Include="MLTree\MLTree.h">
       <Filter>Header Files\MLTree</Filter>
     </ClInclude>
-    <ClInclude Include="MLTree\QueryOracle.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Util\CLP.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Util\ParsingTags.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MLTree\PlainQueryOracle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MLTree\CTScanData.h">
@@ -99,12 +81,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MLTree\Laplace.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MLTree\DiffPrivQueryOracle.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MLTree\DiffPrivMedian.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\ArrayView.h">

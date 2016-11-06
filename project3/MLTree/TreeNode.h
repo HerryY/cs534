@@ -5,19 +5,15 @@
 #include "Common\BitVector.h"
 #include <istream>
 
-#include "QueryOracle.h"
 #include <ostream>
 
 class DbTuple
 {
 
 public:
-	//BitVector mPreds;
 	std::vector<u8> mPreds;
 	std::vector<double> mPlain;
-	YType mValue;
-	/*i64 getValue() const;
-	void setValue(i64 newVal);*/
+	double mValue;
 };
 
 class TreeNode
@@ -28,13 +24,12 @@ public:
 
 	TreeNode * mRight, *mLeft;
 	u64 mPredIdx, mIdx, mDepth;
-	YType mValue;
+	double mValue;
 
 	std::vector<DbTuple*> mRows;
 
-    YType hash();
+    double hash();
 
 	void toFile(std::ostream& out);
-	//void loadFromFile(std::istream& in, double scale);
 };
 

@@ -1,6 +1,5 @@
 #pragma once
 #include "MLTree.h"
-#include "QueryOracle.h"
 #include <vector>
 #include <functional>
 
@@ -17,9 +16,10 @@ public:
 
 	void learn(
 		std::vector<DbTuple>& myDB,
-		QueryOracle& qo,
 		u64 numTrees,
 		double learningRate,
+        u64 maxDepth, 
+        u64 minSplit,
 		std::vector<DbTuple>* evalData = nullptr);
 
 
@@ -27,7 +27,7 @@ public:
 		std::vector<DbTuple>& testData,
 		double learningRate);
 
-	YType evaluate(const DbTuple&);
+	double evaluate(const DbTuple&);
 
 	double mLearningRate;
 
