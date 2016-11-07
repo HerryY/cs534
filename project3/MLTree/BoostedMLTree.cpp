@@ -75,11 +75,13 @@ void BoostedMLTree::learn(
             for (u64 i = 0; i < evalData->size(); i++)
             {
                 auto y = (*evalData)[i].mValue;
-                auto yprime = mTrees[treeIdx].evaluate((*evalData)[i]);
+                //auto yprime = mTrees[treeIdx].evaluate((*evalData)[i]) * learningRate;
 
-                auto Lprime = y - learningRate * yprime;
+                auto yprime  = evaluate((*evalData)[i]);
 
-                (*evalData)[i].mValue = Lprime;
+                auto Lprime = y - yprime;
+
+                //(*evalData)[i].mValue = Lprime;
 
                 YSum += std::abs(Lprime);
                 YSq += Lprime * Lprime;
@@ -164,18 +166,18 @@ double BoostedMLTree::evaluate(const DbTuple & data)
         auto Lprime = mLearningRate *  yprime;
 
 
-        std::cout
-            << "  y' =" << y << " + " << mLearningRate * yprime << std::endl
-            << "     = " << y + Lprime
-            //<< "  y' = " << yprime 
-            << std::endl << std::endl;
+        //std::cout
+        //    << "  y' =" << y << " + " << mLearningRate * yprime << std::endl
+        //    << "     = " << y + Lprime
+        //    //<< "  y' = " << yprime 
+        //    << std::endl << std::endl;
 
         y += Lprime;
 
         //std::cout<< y << std::endl;
 
     }
-    std::cout << std::endl;
+    //std::cout << std::endl;
 
     return y;
 }

@@ -6,7 +6,7 @@
 TreeNode::TreeNode()
     :mRight(nullptr),
     mLeft(nullptr),
-    mPredIdx(-1), mValue(-1), mIdx(1)
+    mPredIdx(-1), mValue(0), mIdx(1)
 {
 }
 

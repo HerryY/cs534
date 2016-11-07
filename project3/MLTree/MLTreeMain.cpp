@@ -136,7 +136,7 @@ void MLTreeCTScanDP(int ii)
     u64 foldCount = 10;
 
     std::vector<double>
-        learningRates{/* 0.3,*/ 0.1/*, 0.1, 0.05 */ },
+        learningRates{/* 0.3,*/0.1/*, 0.1, 0.05 */ },
         nodeEpsilon{ /*1,0*/0.01/*,0.05,0.025,0.01,0.005,0.0025,0.001 */ },
         leafEpsilon{ /*1,0.1,*/0.01,/*0.025,0.01,0.005,0.0025,0.001 *//*,0.01*/ },
         numTrees{ /*50,100,*/200/*,500 */ },
