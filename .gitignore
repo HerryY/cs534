@@ -243,3 +243,21 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+.*.swp
+*.synctex
+*.pdf
+*.dvi
+
+
+*.pptx
+*.xlsx
+*.sty
+*.gz
+*.dtx

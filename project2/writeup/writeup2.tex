@@ -1,0 +1,153 @@
+\documentclass[]{article}
+\usepackage{tikz}
+
+
+%opening
+\title{CS534 — Implementation Assignment 2 \\ \small Due Oct 18th 11:59PM, 2016}
+\author{Peter Rindal, Hung Viet Le, and Trung Viet Vu}
+
+\begin{document}
+
+\maketitle
+
+
+\section{Basic implementation:}
+
+\begin{enumerate}
+	\item (5 pts) Please explain how you use the log of probability to perform classification.\\
+	\\
+	For the Bernoulli classifier, we compute the following
+	\begin{itemize}
+		\item Probability of seeing a trump or Hillary tweet, i.e. 
+		\[
+			\Pr[\mbox{Hillary}] = \frac{\mbox{\# Hillary Tweets}}{\mbox{\# total Tweets}}
+		\]
+		
+		\item The probability of seeing the word $w$ given that it is a Hillary (or Trump) tweet, i.e.
+		\[
+			\Pr[w | \mbox{Hillary}] = \frac{\mbox{\# of times Hillary said } w  + prior}{\mbox{\# Hillary tweets} + 2 * prior}
+		\]
+		For \emph{any word} that Hillary didn't say, we simply give her the prior probability. Same for Trump.
+	\end{itemize}
+	To classify a tweet $t$ given this, we compute the following but in log form
+	\[
+		\Pr[t \mid \mbox{Hillary}] = \Pr[\mbox{Hillary}]\left(\prod_{w\in t} \Pr[w \mid \mbox{Hillary}]\right)  \left( \prod_{w\in (V \backslash t)} (1-\Pr[ t \mid \mbox{Hillary}]) \right) 
+	\]
+	We output realDonaldTrump if $\log \Pr[t \mid \mbox{realDonaldTrump}]>\log \Pr[t \mid \mbox{Hillary}]$ and Hillary otherwise. 
+	
+	\emph{Note:} the laplace smoothing is accounted for by giving each class the prior distribution for words that are unseen for that class.
+	
+	
+	For the Multinomial classifier, the probability of a word $w$ give a class  takes the form 
+	\[
+		\Pr[w \mid \mbox{Hillary}] = \frac{\mbox{\# times Hillary said } w + prior}{\mbox{Total Hillary words} + (\mbox{Total unique words }* prior)}
+	\]
+	The probability of the word $w$ given a class takes the form 
+	\[
+			\Pr[t \mid \mbox{Hillary}] = \Pr[\mbox{Hillary}]\left( \prod_{w\in t}\Pr[w \mid \mbox{Hillary}] \right)
+	\]
+	
+	\item (5 pts) Report the overall testing accuracy (number of correctly classified documents over the total number of documents) for both (Bernoulli and Multinomial) models.\\
+	\\
+	The prediction accuracy of the Bernoulli model on the test dataset was $91\%$. For the Multinomial model it was $94\%$.
+	
+	\item (5 pts) Whose tweets were confused more often than the other? Why do you think this is? To answer this question, you might want to produce a $K$ by $K$ confusion matrix, where $K = 2$ is the number of classes (Clinton, Trump), and the $i, j$-th entry of the matrix shows the number of class $i$ documents being predicted to belong to class $j$. A perfect prediction will have only diagonal elements in this confusion matrix.\\
+	\\
+	 Using the Bernoulli model,  Hillary's tweets were confused $8.7\%$ of the time, Trump's were confused $9.0\%$ of the time.
+	 \begin{center}
+	 	\begin{tabular}{|r|c|c|}\hline
+	 		\multicolumn{1}{|c|}{predicted} & \multicolumn{2}{c|}{true label $y$}\\ \cline{2-3}
+	 		\multicolumn{1}{|c|}{label $\hat{y}$} & Hillary & Trump \\ \hline
+	 		Hillary   & 292 & 29 \\ \hline
+	 		Trump     & 28 &  295 \\ \hline 
+	 	\end{tabular} 
+	 \end{center}
+	
+	 Using the Multinomial model,  Hillary's tweets were confused $5.0\%$ of the time, Trump's were confused $6.8\%$ of the time.
+	 \begin{center}
+		 	\begin{tabular}{|r|c|c|}\hline
+		 		\multicolumn{1}{|c|}{predicted} & \multicolumn{2}{c|}{true label $y$}\\ \cline{2-3}
+		 		\multicolumn{1}{|c|}{label $\hat{y}$} & Hillary & Trump \\ \hline
+		 		Hillary   & 304 & 22 \\ \hline
+		 		Trump     & 16 &  302 \\ \hline  	 		
+		 	\end{tabular}
+	 \end{center}
+	 
+	 \item (5 pts)  Identify, for each class, the top ten words that have the highest probability.\\
+	 \\
+		 10 highly probable words about Clinton\\
+		 ('.', 3223)\\
+		 (',', 1453)\\
+		 ('the', 1435)\\
+		 ('to', 1415)\\
+		 ('"', 1226)\\
+		 ('a', 914)\\
+		 ('and', 803)\\
+		 ('of', 690)\\
+		 ('we', 644)\\
+		 ('in', 643)\\ 
+		 
+		 10 highly probable words about Trump\\
+		 ('.', 2354)\\
+		 ('!', 1939)\\
+		 (',', 1512)\\
+		 ('the', 1430)\\
+		 ('"', 983)\\
+		 ('to', 899)\\
+		 ('and', 737)\\
+		 ('a', 718)\\
+		 ('in', 687)\\
+		 ('i', 667)
+\end{enumerate}
+
+\section{Priors and overfitting:}
+
+\includegraphics[scale=0.5]{plot.pdf}
+
+
+
+Applying Multinomial Model with prior =1e-05\\
+Prediction accuracy:\\
+0.92701863354\\
+Hillary     295 22\\
+Trump       25 302\\
+
+Applying Multinomial Model with prior =0.0001\\
+Prediction accuracy:\\
+0.930124223602\\
+Hillary     297 22\\
+Trump       23 302\\
+
+Applying Multinomial Model with prior =0.001\\
+Prediction accuracy:\\
+0.930124223602\\
+Hillary     297 22\\
+Trump       23 302\\
+
+Applying Multinomial Model with prior =0.01\\
+Prediction accuracy:\\
+0.933229813665\\
+Hillary     299 22\\
+Trump       21 302\\
+
+Applying Multinomial Model with prior =0.1\\
+Prediction accuracy:\\
+0.94099378882\\
+Hillary     305 23\\
+Trump       15 301\\
+
+Applying Multinomial Model with prior =1.0\\
+Prediction accuracy:\\
+0.94099378882\\
+Hillary     304 22 \\
+Trump       16  302
+
+\section{Identifying important features:}
+
+We chose two techniques. First we found a list of words online that contain ``less information". For example, the words ``a", ``the", ``i" are on this list. The idea is that these words are so common that they are bad features. However, we found that this significantly hurts the classification accuracy and only increases the running time performance marginally. 
+
+Our second approach was to only keep the top $n$ most used words from each class. This technique worked pretty well. When keeping 1,000 out of the approximate 11,000 words, our classifiers decreased in accuracy by 1 percent but ran much faster. 
+
+If we were to continue investigating feature selection, we would look into mutual information, and the chi squared tests. 
+
+\end{document}
