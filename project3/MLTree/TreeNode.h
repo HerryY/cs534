@@ -2,7 +2,6 @@
 
 #include <vector>
 #include "Common\Defines.h"
-#include "Common\BitVector.h"
 #include <istream>
 
 #include <ostream>

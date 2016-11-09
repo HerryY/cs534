@@ -27,25 +27,10 @@
     <ClCompile Include="Util\CLP.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MLTree\MLTreeMain.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="MLTree\TreeNode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MLTree\BoostedMLTree.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MLTree\Laplace.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\BitIterator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\BitVector.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\ByteStream.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Common\Defines.cpp">
@@ -54,7 +39,7 @@
     <ClCompile Include="Common\Timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Crypto\PRNG.cpp">
+    <ClCompile Include="Common\PRNG.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -71,43 +56,19 @@
     <ClInclude Include="MLTree\CTScanData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MLTree\MLTreeMain.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MLTree\TreeNode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MLTree\BoostedMLTree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MLTree\Laplace.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\ArrayView.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\BitIterator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\BitVector.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\ByteStream.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Common\Defines.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Exceptions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\MatrixView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\Timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Crypto\PRNG.h">
+    <ClInclude Include="Common\PRNG.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

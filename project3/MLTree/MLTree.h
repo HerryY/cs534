@@ -6,10 +6,13 @@
 #include <mutex>
 #include <list>
 
+//typedef std::array<bool, 3> YType;
+typedef double YType;
+
 struct splitUpdate
 {
 
-    double mYSum;
+    YType mYSum;
     u64 mSize;
 };
 
@@ -17,34 +20,26 @@ struct splitUpdate
 class MLTree
 {
 public:
-	MLTree();
-	~MLTree();
+    MLTree();
+    ~MLTree();
 
-	std::mutex mNextListMtx, mLeafListMtx;
-	std::list<TreeNode*> nextList, mLeafNodes;
-	u64 mNodeCount;
-
-    u64 mMaxDepth, mMinSplitSize;
-
-	TreeNode root;
-	u64 mDepth;
-
-	void learn(std::vector<DbTuple>& myDB, u64 mMaxDepth, u64 mMinSplitSize);
-
-    u64 getNextSplit(
-        const std::vector<std::array<splitUpdate, 2>>& updates,
-        TreeNode* cur);
-
-	void test(
-		 std::vector<DbTuple>& testData);
-
-	double evaluate(
-		 const DbTuple& data);
+    std::mutex mNextListMtx, mLeafListMtx;
+    std::list<TreeNode*> nextList, mLeafNodes;
+    u64 mNodeCount;
 
 
-	u64 getDepth();
+    TreeNode root;
+    u64 mDepth;
+
+    void learn(std::vector<DbTuple>& myDB, u64 mMinSplitSize);
+
+    YType evaluate(
+         const DbTuple& data);
+
+
+    u64 getDepth();
 
 private: 
-	void deleteNode(TreeNode*& node);
+    void deleteNode(TreeNode*& node);
 };
 

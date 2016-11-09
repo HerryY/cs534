@@ -17,7 +17,6 @@ void BoostedMLTree::learn(
     std::vector<DbTuple>& myDB,
     u64 numTrees,
     double learningRate,
-    u64 maxDepth,
     u64 minSplit,
     std::vector<DbTuple>* evalData)
 {
@@ -26,15 +25,6 @@ void BoostedMLTree::learn(
 
     mNumTrees = numTrees;
     double maxY(9999);
-
-    double runningNoise(0), runningOpt(0), runningSplitPercentile(0), runningSize(0);
-
-
-    std::sort(myDB.begin(), myDB.end(), [](const DbTuple& val1, const DbTuple& val2)
-    {
-        return val1.mValue < val2.mValue;
-    });
-
 
     std::vector<DbTuple>* db = &myDB;
     std::vector<DbTuple> updatedDB(myDB);
@@ -45,7 +35,7 @@ void BoostedMLTree::learn(
     {
 
         // learn a  simple decision tree
-        mTrees[treeIdx].learn(*db, maxDepth, minSplit);
+        mTrees[treeIdx].learn(*db, minSplit);
 
 
         // now subtract off learningRate * prediction from our labels.
@@ -72,6 +62,8 @@ void BoostedMLTree::learn(
 
             double YSq = 0, YSum = 0;
             maxY = 0;
+
+            double correct = 0;
             for (u64 i = 0; i < evalData->size(); i++)
             {
                 auto y = (*evalData)[i].mValue;
@@ -81,6 +73,8 @@ void BoostedMLTree::learn(
 
                 auto Lprime = y - yprime;
 
+
+                if (std::abs(Lprime) < .5) ++correct;
                 //(*evalData)[i].mValue = Lprime;
 
                 YSum += std::abs(Lprime);
@@ -104,7 +98,8 @@ void BoostedMLTree::learn(
                 << " t " << w << treeIdx << " "
                 << " l1 " << w << l1
                 << " l2 " << w << l2
-                << " max " << w << maxY << std::endl;
+                << " max " << w << maxY 
+                << "  " << w << (correct * 100 / evalData->size()) <<"%"<<std::endl;
         }
 
 
