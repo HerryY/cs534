@@ -70,13 +70,18 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize)
             // This pair is for the right node of a canidate split
             updates[i][0].mSize = 0;
             updates[i][0].mYSum = 0;
+			updates[i][0].classFreq.fill(0);
             
             // and this one is for the left node of a canidate split
             updates[i][1].mSize = 0;
             updates[i][1].mYSum = 0;
+			updates[i][1].classFreq.fill(0);
         }
 
-
+		double nodeEntropy = 0.0; // the uncertainty of the current node
+		std::array<u32, 3> nodeClassFreq; // the frequency (# of records) for each class label
+		nodeClassFreq.fill(0);
+	   // list through each rows of db in the current treenode
         for (auto j = 0; j < cur->mRows.size(); ++j)
         {
             // for each record that is in the current node
@@ -85,7 +90,11 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize)
             
             auto& row = cur->mRows[j];
 
-            auto y = row->mValue;
+            auto y = row->mValue; // the label
+
+			int label = std::round(y);
+			//if (label < 0 || label > 2) printf("break here\n");
+			nodeClassFreq[label] ++;
 
             for (u64 i = 0; i < predSize; ++i)
             {
@@ -95,14 +104,24 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize)
 
                 // add this records data to the running total
                 updates[i][px].mYSum += y;
-                updates[i][px].mSize++;
+				int label = std::round(y);
+				updates[i][px].classFreq[label]++;
+				updates[i][px].mSize++;
 
             }
         }
+		double nodep0 = 1.0*nodeClassFreq[0] / (1.0*cur->mRows.size());
+		double nodep1 = 1.0*nodeClassFreq[1] / (1.0*cur->mRows.size());
+		double nodep2 = 1.0 - nodep0 - nodep1;
+		double epsilon = 0.0000001;
 
+		if (nodep0 > epsilon) nodeEntropy += -nodep0*std::log2(nodep0);
+		if (nodep1 > epsilon) nodeEntropy += -nodep1*std::log2(nodep1);
+		if (nodep2 > epsilon) nodeEntropy += -nodep2*std::log2(nodep2);
+		//printf("node entropy: %f\n", nodeEntropy);
         // now lets compute which split is the best using the L2 loss function
         cur->mPredIdx = -1;
-        i64 bestLoss = 99999999999999;
+ /*       i64 bestLoss = 99999999999999;
 
         for (u64 i = 0; i < updates.size(); ++i)
         {
@@ -126,7 +145,49 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize)
                 }
             }
         }
+*/
+		// compute information gain
+		double bestIG = 0.0;
+		for (u64 i = 0; i < updates.size(); ++i)
+		{
+			// for each potential split, make sure that it is of minimal size
+			if (updates[i][0].mSize > minSplitSize &&
+				updates[i][1].mSize > minSplitSize)
+			{
+				double epsilon = 0.0000001;
+				
+				// entropy of the left child
+				double p00 = 1.0*updates[i][0].classFreq[0] / (1.0*updates[i][0].mSize);
+				double p01  = 1.0*updates[i][0].classFreq[1] / (1.0*updates[i][0].mSize);
+				double p02 = 1.0 - p00 - p01;
+				double entropy0 = 0.0;
+				if (p00 > epsilon) entropy0 += -p00*std::log2(p00);
+				if (p01 > epsilon) entropy0 += -p01*std::log2(p01);
+				if (p02 > epsilon) entropy0 += -p02*std::log2(p02);
 
+				// entropy of the right child
+				double p10 = 1.0*updates[i][1].classFreq[0] / (1.0*updates[i][1].mSize);
+				double p11 = 1.0*updates[i][1].classFreq[1] / (1.0*updates[i][1].mSize);
+				double p12 = 1.0 - p10 - p11;
+				double entropy1 = 0.0;
+				if (p00 > epsilon) entropy1 += -p10*std::log2(p10);
+				if (p01 > epsilon) entropy1 += -p11*std::log2(p11);
+				if (p02 > epsilon) entropy1 += -p12*std::log2(p12);
+
+				// expected entropy of children
+				double p0 = 1.0*updates[i][0].mSize / (1.0*(updates[i][0].mSize + updates[i][1].mSize));
+				double p1 = 1.0 - p0;
+				double childrenEntropy = p0*entropy0 + p1*entropy1;
+
+				double IG = nodeEntropy - childrenEntropy;	// information gain
+				if (IG > bestIG) {
+					bestIG = IG;
+					cur->mPredIdx = i;
+				}
+			}
+		}
+		printf("Information Gain: %f\n", bestIG);
+		
         // if we found a predicate (at least one was of min split size), then
         // lets use it and copy our data into the new codes.
         if (cur->mPredIdx != -1)

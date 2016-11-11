@@ -5,6 +5,7 @@
 #include <functional>
 #include <mutex>
 #include <list>
+#include <array>
 
 //typedef std::array<bool, 3> YType;
 typedef double YType;
@@ -14,6 +15,7 @@ struct splitUpdate
 
     YType mYSum;
     u64 mSize;
+	std::array<u32, 3> classFreq;
 };
 
 

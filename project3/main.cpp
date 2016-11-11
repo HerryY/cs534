@@ -137,7 +137,7 @@ void loadIris(
             }
             else
             {
-                row.mValue = 3;
+                row.mValue = 2;
             }
         }
     }
@@ -200,7 +200,7 @@ int main(int argc, char** argv)
 
 
     tree.learn(fullData, numTrees, learningRate, minSplitSize, &fullData);
-
+	std::system("pause");
 
     return 0;
 }
