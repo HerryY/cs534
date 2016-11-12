@@ -42,6 +42,9 @@
     <ClCompile Include="Common\PRNG.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MLTree\RandomForest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MLTree\MLTree.h">
@@ -69,6 +72,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\PRNG.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MLTree\RandomForest.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

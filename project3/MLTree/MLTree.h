@@ -5,6 +5,7 @@
 #include <functional>
 #include <mutex>
 #include <list>
+#include "Common/PRNG.h"
 #include <array>
 
 //typedef std::array<bool, 3> YType;
@@ -25,6 +26,7 @@ public:
     MLTree();
     ~MLTree();
 
+    PRNG mPrng;
     std::mutex mNextListMtx, mLeafListMtx;
     std::list<TreeNode*> nextList, mLeafNodes;
     u64 mNodeCount;
@@ -33,7 +35,7 @@ public:
     TreeNode root;
     u64 mDepth;
 
-    void learn(std::vector<DbTuple>& myDB, u64 mMinSplitSize);
+    void learn(std::vector<DbTuple>& myDB, u64 mMinSplitSize, bool random);
 
     YType evaluate(
          const DbTuple& data);

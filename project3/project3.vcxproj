@@ -87,6 +87,7 @@
     <ClCompile Include="Common\Timer.cpp" />
     <ClCompile Include="Common\PRNG.cpp" />
     <ClCompile Include="MLTree\BoostedMLTree.cpp" />
+    <ClCompile Include="MLTree\RandomForest.cpp" />
     <ClCompile Include="Util\CLP.cpp" />
     <ClCompile Include="MLTree\TreeNode.cpp" />
     <ClCompile Include="main.cpp" />
@@ -98,6 +99,7 @@
     <ClInclude Include="Common\PRNG.h" />
     <ClInclude Include="MLTree\BoostedMLTree.h" />
     <ClInclude Include="MLTree\CTScanData.h" />
+    <ClInclude Include="MLTree\RandomForest.h" />
     <ClInclude Include="Util\CLP.h" />
     <ClInclude Include="MLTree\TreeNode.h" />
     <ClInclude Include="MLTree\MLTree.h" />

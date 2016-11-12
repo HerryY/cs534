@@ -8,6 +8,10 @@
 MLTree::MLTree()
     :mDepth(0)
 {
+    // seed the random number generalor with the address of this class
+    // Should be pretty random.
+    mPrng.SetSeed((u64)this);
+
 }
 
 
@@ -21,7 +25,7 @@ MLTree::~MLTree()
 
 
 
-void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize)
+void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
 {
     // initialize some member variables
     mDepth = 0;
@@ -32,6 +36,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize)
     root.mIdx = 1;
     root.mDepth = 0;
 
+  
     // copy the full datset into the root node. It
     // will later be partioned into the leaves through
     // recursive splits
@@ -61,133 +66,170 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize)
 
         // remove it from the list, marking it as being processed
         nextList.pop_back();
+        cur->mPredIdx = -1;
+
 
         // clear the old values in the update list
-        for (u64 i =0; i < updates.size(); ++i)
+        for (u64 i = 0; i < updates.size(); ++i)
         {
             // the L2 loss function need the size of each node
             // and the sum of the labels for this node. 
             // This pair is for the right node of a canidate split
             updates[i][0].mSize = 0;
             updates[i][0].mYSum = 0;
-			updates[i][0].classFreq.fill(0);
-            
+            updates[i][0].classFreq.fill(0);
+
             // and this one is for the left node of a canidate split
             updates[i][1].mSize = 0;
             updates[i][1].mYSum = 0;
-			updates[i][1].classFreq.fill(0);
+            updates[i][1].classFreq.fill(0);
         }
 
-		double nodeEntropy = 0.0; // the uncertainty of the current node
-		std::array<u32, 3> nodeClassFreq; // the frequency (# of records) for each class label
-		nodeClassFreq.fill(0);
-	   // list through each rows of db in the current treenode
-        for (auto j = 0; j < cur->mRows.size(); ++j)
+
+        if (random)
         {
-            // for each record that is in the current node
-            // see what node it would be mapped to if we used 
-            // the j'th split
-            
-            auto& row = cur->mRows[j];
+            // random forest tree
 
-            auto y = row->mValue; // the label
+            std::vector<u64> validNodes;
+            validNodes.reserve(predSize);
 
-			int label = std::round(y);
-			//if (label < 0 || label > 2) printf("break here\n");
-			nodeClassFreq[label] ++;
-
-            for (u64 i = 0; i < predSize; ++i)
+            // list through each rows of db in the current treenode
+            for (auto j = 0; j < cur->mRows.size(); ++j)
             {
-                // px is the index of what node this record would be mapped to.
-                // its either 0 or 1 (left or right node)
-                u8 px = row->mPreds[i];
+                // for each record that is in the current node
+                // see what node it would be mapped to if we used 
+                // the j'th split
 
-                // add this records data to the running total
-                updates[i][px].mYSum += y;
-				int label = std::round(y);
-				updates[i][px].classFreq[label]++;
-				updates[i][px].mSize++;
+                auto& row = cur->mRows[j];
 
-            }
-        }
-		double nodep0 = 1.0*nodeClassFreq[0] / (1.0*cur->mRows.size());
-		double nodep1 = 1.0*nodeClassFreq[1] / (1.0*cur->mRows.size());
-		double nodep2 = 1.0 - nodep0 - nodep1;
-		double epsilon = 0.0000001;
+                auto y = row->mValue; // the label
 
-		if (nodep0 > epsilon) nodeEntropy += -nodep0*std::log2(nodep0);
-		if (nodep1 > epsilon) nodeEntropy += -nodep1*std::log2(nodep1);
-		if (nodep2 > epsilon) nodeEntropy += -nodep2*std::log2(nodep2);
-		//printf("node entropy: %f\n", nodeEntropy);
-        // now lets compute which split is the best using the L2 loss function
-        cur->mPredIdx = -1;
- /*       i64 bestLoss = 99999999999999;
 
-        for (u64 i = 0; i < updates.size(); ++i)
-        {
-            // for each potential split, make sure that it is of minimal size
-            if (updates[i][0].mSize > minSplitSize &&
-                updates[i][1].mSize > minSplitSize)
-            {
-                // compute the L2 loss fucntion. (its been slightly modified since we only care about relative improvement)
-                i64 loss
-                    = -(i64)updates[i][0].mYSum * (i64)updates[i][0].mYSum / (i64)updates[i][0].mSize
-                    + -(i64)updates[i][1].mYSum * (i64)updates[i][1].mYSum / (i64)updates[i][1].mSize
-                    ;
-
-                // if the loss using this split is less that the 
-                // loss incured by the other splits, make this one 
-                // as the best
-                if (loss < bestLoss)
+                for (u64 i = 0; i < predSize; ++i)
                 {
-                    bestLoss = loss;
-                    cur->mPredIdx = i;
+                    // px is the index of what node this record would be mapped to.
+                    // its either 0 or 1 (left or right node)
+                    u8 px = row->mPreds[i];
+
+                    // add this records data to the running total
+                    updates[i][px].mYSum += y;
+                    updates[i][px].mSize++;
+
+                    // if this split i just became large enough to consider, 
+                    // then add it to the list of valid nodes. Later we 
+                    // will ranodmly pick one....
+                    if (updates[i][px].mSize == minSplitSize &&
+                        updates[i][1-px].mSize >= minSplitSize)
+                    {
+                        validNodes.emplace_back(i);
+                    }
                 }
             }
+
+            if (validNodes.size())
+            {
+                u64 idx = mPrng.get<u64>() % validNodes.size();
+                cur->mPredIdx = validNodes[idx];
+            }
+
         }
-*/
-		// compute information gain
-		double bestIG = 0.0;
-		for (u64 i = 0; i < updates.size(); ++i)
-		{
-			// for each potential split, make sure that it is of minimal size
-			if (updates[i][0].mSize > minSplitSize &&
-				updates[i][1].mSize > minSplitSize)
-			{
-				double epsilon = 0.0000001;
-				
-				// entropy of the left child
-				double p00 = 1.0*updates[i][0].classFreq[0] / (1.0*updates[i][0].mSize);
-				double p01  = 1.0*updates[i][0].classFreq[1] / (1.0*updates[i][0].mSize);
-				double p02 = 1.0 - p00 - p01;
-				double entropy0 = 0.0;
-				if (p00 > epsilon) entropy0 += -p00*std::log2(p00);
-				if (p01 > epsilon) entropy0 += -p01*std::log2(p01);
-				if (p02 > epsilon) entropy0 += -p02*std::log2(p02);
+        else
+        {
 
-				// entropy of the right child
-				double p10 = 1.0*updates[i][1].classFreq[0] / (1.0*updates[i][1].mSize);
-				double p11 = 1.0*updates[i][1].classFreq[1] / (1.0*updates[i][1].mSize);
-				double p12 = 1.0 - p10 - p11;
-				double entropy1 = 0.0;
-				if (p00 > epsilon) entropy1 += -p10*std::log2(p10);
-				if (p01 > epsilon) entropy1 += -p11*std::log2(p11);
-				if (p02 > epsilon) entropy1 += -p12*std::log2(p12);
+            double nodeEntropy = 0.0; // the uncertainty of the current node
+            std::array<u32, 3> nodeClassFreq; // the frequency (# of records) for each class label
+            nodeClassFreq.fill(0);
+            // list through each rows of db in the current treenode
+            for (auto j = 0; j < cur->mRows.size(); ++j)
+            {
+                // for each record that is in the current node
+                // see what node it would be mapped to if we used 
+                // the j'th split
 
-				// expected entropy of children
-				double p0 = 1.0*updates[i][0].mSize / (1.0*(updates[i][0].mSize + updates[i][1].mSize));
-				double p1 = 1.0 - p0;
-				double childrenEntropy = p0*entropy0 + p1*entropy1;
+                auto& row = cur->mRows[j];
 
-				double IG = nodeEntropy - childrenEntropy;	// information gain
-				if (IG > bestIG) {
-					bestIG = IG;
-					cur->mPredIdx = i;
-				}
-			}
-		}
-		printf("Information Gain: %f\n", bestIG);
-		
+                auto y = row->mValue; // the label
+
+                int label = std::round(y);
+                //if (label < 0 || label > 2) printf("break here\n");
+                nodeClassFreq[label] ++;
+
+                for (u64 i = 0; i < predSize; ++i)
+                {
+                    // px is the index of what node this record would be mapped to.
+                    // its either 0 or 1 (left or right node)
+                    u8 px = row->mPreds[i];
+
+                    // add this records data to the running total
+                    updates[i][px].mYSum += y;
+                    int label = std::round(y);
+                    updates[i][px].classFreq[label]++;
+                    updates[i][px].mSize++;
+
+                }
+            }
+
+            // compute entropy 
+
+            double nodep0 = 1.0*nodeClassFreq[0] / (1.0*cur->mRows.size());
+            double nodep1 = 1.0*nodeClassFreq[1] / (1.0*cur->mRows.size());
+            double nodep2 = 1.0 - nodep0 - nodep1;
+            double epsilon = 0.0000001;
+
+            if (nodep0 > epsilon) nodeEntropy += -nodep0*std::log2(nodep0);
+            if (nodep1 > epsilon) nodeEntropy += -nodep1*std::log2(nodep1);
+            if (nodep2 > epsilon) nodeEntropy += -nodep2*std::log2(nodep2);
+            //printf("node entropy: %f\n", nodeEntropy);
+
+
+            // now lets compute which split is the best using the L2 loss function
+
+           // compute information gain
+            double bestIG = 0.0;
+            for (u64 i = 0; i < updates.size(); ++i)
+            {
+                // for each potential split, make sure that it is of minimal size
+                if (updates[i][0].mSize > minSplitSize &&
+                    updates[i][1].mSize > minSplitSize)
+                {
+                    double epsilon = 0.0000001;
+
+                    // entropy of the left child
+                    double p00 = 1.0*updates[i][0].classFreq[0] / (1.0*updates[i][0].mSize);
+                    double p01 = 1.0*updates[i][0].classFreq[1] / (1.0*updates[i][0].mSize);
+                    double p02 = 1.0 - p00 - p01;
+                    double entropy0 = 0.0;
+                    if (p00 > epsilon) entropy0 += -p00*std::log2(p00);
+                    if (p01 > epsilon) entropy0 += -p01*std::log2(p01);
+                    if (p02 > epsilon) entropy0 += -p02*std::log2(p02);
+
+                    // entropy of the right child
+                    double p10 = 1.0*updates[i][1].classFreq[0] / (1.0*updates[i][1].mSize);
+                    double p11 = 1.0*updates[i][1].classFreq[1] / (1.0*updates[i][1].mSize);
+                    double p12 = 1.0 - p10 - p11;
+                    double entropy1 = 0.0;
+                    if (p00 > epsilon) entropy1 += -p10*std::log2(p10);
+                    if (p01 > epsilon) entropy1 += -p11*std::log2(p11);
+                    if (p02 > epsilon) entropy1 += -p12*std::log2(p12);
+
+                    // expected entropy of children
+                    double p0 = 1.0*updates[i][0].mSize / (1.0*(updates[i][0].mSize + updates[i][1].mSize));
+                    double p1 = 1.0 - p0;
+                    double childrenEntropy = p0*entropy0 + p1*entropy1;
+
+                    double IG = nodeEntropy - childrenEntropy;	// information gain
+                    if (IG > bestIG) {
+                        bestIG = IG;
+                        cur->mPredIdx = i;
+                    }
+                }
+            }
+
+            //printf("Information Gain: %f\n", bestIG);
+
+        }
+
+
         // if we found a predicate (at least one was of min split size), then
         // lets use it and copy our data into the new codes.
         if (cur->mPredIdx != -1)

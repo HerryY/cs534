@@ -1,29 +1,26 @@
-#include "BoostedMLTree.h"
+#include "RandomForest.h"
 
 #include "MLTree.h"
 
 #include <fstream>
 #include <numeric>
-BoostedMLTree::BoostedMLTree()
+RandomForest::RandomForest()
 {
 }
 
 
-BoostedMLTree::~BoostedMLTree()
+RandomForest::~RandomForest()
 {
 }
 
-void BoostedMLTree::learn(
+void RandomForest::learn(
     std::vector<DbTuple>& myDB,
     u64 numTrees,
-    double learningRate,
     u64 minSplit,
     std::vector<DbTuple>* evalData)
 {
-    mLearningRate = learningRate;
     mTrees.reset(new MLTree[numTrees]);
 
-    mNumTrees = numTrees;
     double maxY(9999);
 
     std::vector<DbTuple>* db = &myDB;
@@ -35,23 +32,9 @@ void BoostedMLTree::learn(
     {
 
         // learn a  simple decision tree
-        mTrees[treeIdx].learn(*db, minSplit, false);
+        mTrees[treeIdx].learn(*db, minSplit, true);
 
-
-        // now subtract off learningRate * prediction from our labels.
-        // This will be come our new dataset.
-        for (u64 i = 0; i < myDB.size(); ++i)
-        {
-            auto Lprime =
-                updatedDB[i].mValue -
-                learningRate * mTrees[treeIdx].evaluate(updatedDB[i]);
-
-            updatedDB[i].mValue = Lprime;
-        }
-
-        // set the updated data as the training data
-        db = &updatedDB;
-
+        ++mNumTrees;
 
         // evalute the current performance of the model
         if (evalData)//&& ((treeIdx % 10 == 0) || treeIdx == numTrees - 1)
@@ -112,7 +95,7 @@ void BoostedMLTree::learn(
 
 
 
-void BoostedMLTree::test(
+void RandomForest::test(
     std::vector<DbTuple>& testData,
     double learningRate)
 {
@@ -151,33 +134,19 @@ void BoostedMLTree::test(
     }
 }
 
-double BoostedMLTree::evaluate(const DbTuple & data)
+double RandomForest::evaluate(const DbTuple & data)
 {
-
     double y = 0;
+
     for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
     {
-        auto yprime = mTrees[treeIdx].evaluate(data);
-        auto Lprime = mLearningRate *  yprime;
-
-
-        //std::cout
-        //    << "  y' =" << y << " + " << mLearningRate * yprime << std::endl
-        //    << "     = " << y + Lprime
-        //    //<< "  y' = " << yprime 
-        //    << std::endl << std::endl;
-
-        y += Lprime;
-
-        //std::cout<< y << std::endl;
-
+        y += mTrees[treeIdx].evaluate(data);
     }
-    //std::cout << std::endl;
 
-    return y;
+    return y / mNumTrees;
 }
 
-u64 BoostedMLTree::getTotalDepth()
+u64 RandomForest::getTotalDepth()
 {
     u64 sum(0);
     for (u64 i = 0; i < mNumTrees; ++i)

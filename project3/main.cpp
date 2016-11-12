@@ -9,6 +9,7 @@
 #include "MLTree/MLTree.h"
 #include <algorithm>
 #include "Common/PRNG.h"
+#include "MLTree/RandomForest.h"
 
 void loadIris(
     std::vector<DbTuple >& rows)
@@ -171,11 +172,10 @@ int main(int argc, char** argv)
 
     double
         learningRate{ 1 },
-        numTrees{ 1 },
-        minSplitSize{ 16};
+        numTrees{ 5 },
+        minSplitSize{ 8};
 
 
-    BoostedMLTree tree;
 
     std::vector<DbTuple> testData, trainingData, d2;
     trainingData.clear();
@@ -199,8 +199,21 @@ int main(int argc, char** argv)
         fullData.begin() + ((i + 1) * fullData.size() / foldCount));
 
 
-    tree.learn(fullData, numTrees, learningRate, minSplitSize, &fullData);
-	std::system("pause");
+    std::cout << "single tree using minSplitSize = " << minSplitSize << std::endl;
+    std::cout << "uses a "<< foldCount-1 <<" to 1 training test ratio ("<< foldCount<<" fold)."<< std::endl;
+
+    BoostedMLTree tree;
+    tree.learn(trainingData, 1, 1, minSplitSize, &testData);
+    //std::system("pause");
+
+
+    std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees."<< std::endl;
+    std::cout << "uses a " << foldCount - 1 << " to 1 training test ratio (" << foldCount << " fold)." << std::endl;
+
+    RandomForest forest;
+
+    forest.learn(trainingData, numTrees, minSplitSize, &testData);
+
 
     return 0;
 }
