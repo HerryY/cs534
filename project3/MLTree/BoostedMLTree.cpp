@@ -63,6 +63,19 @@ void BoostedMLTree::learn(
             double YSq = 0, YSum = 0;
             maxY = 0;
 
+			double train_correct = 0;
+			for (u64 i = 0; i < db->size(); i++)
+			{
+				auto y = (*db)[i].mValue;
+
+				auto yprime = evaluate((*db)[i]);
+
+				auto Lprime = y - yprime;
+				
+				if (std::abs(Lprime) < .5) ++train_correct;
+				
+			}
+
             double correct = 0;
             for (u64 i = 0; i < evalData->size(); i++)
             {
@@ -95,10 +108,11 @@ void BoostedMLTree::learn(
 
             std::cout
                 << " dt " << w << totalDepth << " "
-                << " t " << w << treeIdx << " "
-                << " l1 " << w << l1
-                << " l2 " << w << l2
-                << " max " << w << maxY 
+                //<< " t " << w << treeIdx << " "
+                //<< " l1 " << w << l1
+                //<< " l2 " << w << l2
+                //<< " max " << w << maxY 
+				<< "  " << w << (train_correct * 100 / db->size()) << "%"
                 << "  " << w << (correct * 100 / evalData->size()) <<"%"<<std::endl;
         }
 

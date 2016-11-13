@@ -23,7 +23,21 @@ MLTree::~MLTree()
 
 }
 
+// private function for report
+double indexFractionToAttributeValue(int i)
+{
+	// order: sepal length, sepal width, petal length, petal width
+	double minAttValues[] = {4.2, 2.0, 1.0, 0.1};
+	double attRanges[] = {3.7, 2.4, 5.9, 2.4};
+	int stepCount = 40;
 
+	double v;
+	int att = i / stepCount;		// 40 is stepcount
+	int frac = (i+1) % (stepCount+1);
+	v = minAttValues[att] + frac * attRanges[att] / stepCount;
+
+	return v;
+}
 
 void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
 {
@@ -161,8 +175,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
                     u8 px = row->mPreds[i];
 
                     // add this records data to the running total
-                    updates[i][px].mYSum += y;
-                    int label = std::round(y);
+                    updates[i][px].mYSum += y;                    
                     updates[i][px].classFreq[label]++;
                     updates[i][px].mSize++;
 
@@ -192,7 +205,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
                 if (updates[i][0].mSize > minSplitSize &&
                     updates[i][1].mSize > minSplitSize)
                 {
-                    double epsilon = 0.0000001;
+                    double epsilon = 1e-7;
 
                     // entropy of the left child
                     double p00 = 1.0*updates[i][0].classFreq[0] / (1.0*updates[i][0].mSize);
@@ -208,9 +221,9 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
                     double p11 = 1.0*updates[i][1].classFreq[1] / (1.0*updates[i][1].mSize);
                     double p12 = 1.0 - p10 - p11;
                     double entropy1 = 0.0;
-                    if (p00 > epsilon) entropy1 += -p10*std::log2(p10);
-                    if (p01 > epsilon) entropy1 += -p11*std::log2(p11);
-                    if (p02 > epsilon) entropy1 += -p12*std::log2(p12);
+                    if (p10 > epsilon) entropy1 += -p10*std::log2(p10);
+                    if (p11 > epsilon) entropy1 += -p11*std::log2(p11);
+                    if (p12 > epsilon) entropy1 += -p12*std::log2(p12);
 
                     // expected entropy of children
                     double p0 = 1.0*updates[i][0].mSize / (1.0*(updates[i][0].mSize + updates[i][1].mSize));
@@ -218,6 +231,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
                     double childrenEntropy = p0*entropy0 + p1*entropy1;
 
                     double IG = nodeEntropy - childrenEntropy;	// information gain
+					//printf("%d, %5f, %5f\n", i, indexFractionToAttributeValue(i), IG);
                     if (IG > bestIG) {
                         bestIG = IG;
                         cur->mPredIdx = i;
@@ -225,7 +239,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
                 }
             }
 
-            //printf("Information Gain: %f\n", bestIG);
+            //printf("Information Gain: i \t %5f \t %5f ()\n", cur->mPredIdx, indexFractionToAttributeValue(cur->mPredIdx), bestIG);
 
         }
 

@@ -128,7 +128,7 @@ void loadIris(
             }
 
             // compute the class value
-            if (tok[4] == "Iris-setosa")
+            /*if (tok[4] == "Iris-setosa")
             {
                 row.mValue = 0;
             }
@@ -139,7 +139,8 @@ void loadIris(
             else
             {
                 row.mValue = 2;
-            }
+            }*/
+			row.mValue = std::stoi(tok[4]);
         }
     }
 
@@ -156,8 +157,8 @@ int main(int argc, char** argv)
 
     // shuffle the data so that when we split it into test and training
     // we dont get all of one class
-    std::shuffle(fullData.begin(), fullData.end(), prng);
-    u64 foldCount = 10;
+    //std::shuffle(fullData.begin(), fullData.end(), prng);
+    u64 foldCount = 5;
 
     //for (u64 i = 0; i < fullData.size(); ++i)
     //{
@@ -173,14 +174,14 @@ int main(int argc, char** argv)
     double
         learningRate{ 1 },
         numTrees{ 5 },
-        minSplitSize{ 8};
+        minSplitSize{ 1};
 
 
 
     std::vector<DbTuple> testData, trainingData, d2;
     trainingData.clear();
 
-    u64 i = 0;
+    u64 i = 4;
 
     trainingData.insert(
         trainingData.end(),
@@ -202,9 +203,11 @@ int main(int argc, char** argv)
     std::cout << "single tree using minSplitSize = " << minSplitSize << std::endl;
     std::cout << "uses a "<< foldCount-1 <<" to 1 training test ratio ("<< foldCount<<" fold)."<< std::endl;
 
-    BoostedMLTree tree;
-    tree.learn(trainingData, 1, 1, minSplitSize, &testData);
-    //std::system("pause");
+    BoostedMLTree tree; 
+	tree.learn(trainingData, 1, 1, minSplitSize, &testData);
+	for (auto k = 1; k < 50; k++) {
+		tree.learn(trainingData, 1, 1, k, &testData);
+	}
 
 
     std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees."<< std::endl;
@@ -214,6 +217,7 @@ int main(int argc, char** argv)
 
     forest.learn(trainingData, numTrees, minSplitSize, &testData);
 
+    std::system("pause");
 
     return 0;
 }
