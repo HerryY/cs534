@@ -12,9 +12,9 @@
 #include "MLTree/RandomForest.h"
 
 void loadIris(
-    std::vector<DbTuple >& rows)
+    std::vector<DbTuple >& rows, std::string filePath)
 {
-    std::string filePath("./iris.data");
+    //("./iris.data");
 
     std::fstream in;
     in.open(filePath, in.in);
@@ -63,7 +63,7 @@ void loadIris(
     // the resolution of the predicates, the greater the value, the more predicates we
     // will have and the slower the learning will be. Note that more predicates
     // doesn't always mean more accurate models...
-    u64 stepCount = 40;
+    u64 stepCount = 100;
 
     // the total number of boolean features that we want. 4 because the input
     // trainingData is 4 floating foint values
@@ -91,7 +91,7 @@ void loadIris(
 
             // split the row by their commas.
             std::vector<std::string> tok;
-            split(line, ',', tok);
+            split(line, ';', tok);
 
             // convert the string to doubles
             double sepalLength = std::stod(tok[0]);
@@ -110,6 +110,11 @@ void loadIris(
             // we will extract from the actual input trainingData.
             row.mPreds.resize(numPredicates);
 
+            row.mPreds2[0].resize(stepCount);
+            row.mPreds2[1].resize(stepCount);
+            row.mPreds2[2].resize(stepCount);
+            row.mPreds2[3].resize(stepCount);
+
             // now compute the predicates
             for (u64 i = 0; i < stepCount; ++i)
             {
@@ -118,13 +123,18 @@ void loadIris(
                 double frac = (i + 1.0) / (stepCount + 1);
 
 
-                row.mPreds[0 * stepCount + i] = ((sepalLength - sepalLengthMin)/ sepalLengthRange > frac ) ? 1 : 0;
+                row.mPreds[0 * stepCount + i] = ((sepalLength - sepalLengthMin) / sepalLengthRange > frac) ? 1 : 0;
 
                 //std::cout << sepalLength << " > " << ((frac * sepalLengthRange) + sepalLengthMin) << "  " << (u32)row.mPreds[0 * stepCount + i] <<std::endl;;
 
                 row.mPreds[1 * stepCount + i] = ((sepalWidth - sepalWidthMin) / sepalWidthRange > frac) ? 1 : 0;
                 row.mPreds[2 * stepCount + i] = ((petalLength - petalLengthMin) / petalLengthRange > frac) ? 1 : 0;
-                row.mPreds[3 * stepCount + i] = ((petalWidth - petalWidthMin) / petalWidthRange > frac) ? 1 :0;
+                row.mPreds[3 * stepCount + i] = ((petalWidth - petalWidthMin) / petalWidthRange > frac) ? 1 : 0;
+
+                row.mPreds2[0][i] = ((sepalLength - sepalLengthMin) / sepalLengthRange > frac) ? 1 : 0;
+                row.mPreds2[1][i] = ((sepalWidth - sepalWidthMin) / sepalWidthRange > frac) ? 1 : 0;
+                row.mPreds2[2][i] = ((petalLength - petalLengthMin) / petalLengthRange > frac) ? 1 : 0;
+                row.mPreds2[3][i] = ((petalWidth - petalWidthMin) / petalWidthRange > frac) ? 1 : 0;
             }
 
             // compute the class value
@@ -140,7 +150,7 @@ void loadIris(
             {
                 row.mValue = 2;
             }*/
-			row.mValue = std::stoi(tok[4]);
+            row.mValue = std::stoi(tok[4]);
         }
     }
 
@@ -150,15 +160,15 @@ void loadIris(
 int main(int argc, char** argv)
 {
 
-    std::vector<DbTuple > fullData;
-    loadIris(fullData);
+    std::vector<DbTuple > trainingData, testData;
+    loadIris(trainingData, "./iris-train.csv");
+    loadIris(testData, "./iris-test.csv");
 
     PRNG prng(2345);
 
     // shuffle the data so that when we split it into test and training
     // we dont get all of one class
     //std::shuffle(fullData.begin(), fullData.end(), prng);
-    u64 foldCount = 5;
 
     //for (u64 i = 0; i < fullData.size(); ++i)
     //{
@@ -174,50 +184,68 @@ int main(int argc, char** argv)
     double
         learningRate{ 1 },
         numTrees{ 5 },
-        minSplitSize{ 1};
+        minSplitSize{ 1 };
 
-
-
-    std::vector<DbTuple> testData, trainingData, d2;
-    trainingData.clear();
-
-    u64 i = 4;
-
-    trainingData.insert(
-        trainingData.end(),
-        fullData.begin(),
-        fullData.begin() + (i * fullData.size() / foldCount));
-
-    trainingData.insert(
-        trainingData.end(),
-        fullData.begin() + ((i + 1) * fullData.size() / foldCount),
-        fullData.end());
-
-    testData.clear();
-    testData.insert(
-        testData.begin(),
-        fullData.begin() + (i * fullData.size() / foldCount),
-        fullData.begin() + ((i + 1) * fullData.size() / foldCount));
 
 
     std::cout << "single tree using minSplitSize = " << minSplitSize << std::endl;
-    std::cout << "uses a "<< foldCount-1 <<" to 1 training test ratio ("<< foldCount<<" fold)."<< std::endl;
-
-    BoostedMLTree tree; 
-	tree.learn(trainingData, 1, 1, minSplitSize, &testData);
-	for (auto k = 1; k < 50; k++) {
-		tree.learn(trainingData, 1, 1, k, &testData);
-	}
 
 
-    std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees."<< std::endl;
-    std::cout << "uses a " << foldCount - 1 << " to 1 training test ratio (" << foldCount << " fold)." << std::endl;
+    u64 trials = 10;
 
-    RandomForest forest;
+    for (u64 i = 1; i < 2; i += 2)
+    {
 
-    forest.learn(trainingData, numTrees, minSplitSize, &testData);
+        double testAcc = 0;
+        double trainAcc = 0;
+        for (u64 j = 0; j < trials; ++j)
+        {
 
-    std::system("pause");
+
+            BoostedMLTree tree;
+
+            tree.learn(trainingData, 1,1, minSplitSize);//, &testData
+
+            //testAcc += tree.test(testData, 0);
+            trainAcc += tree.test(trainingData, 0);
+
+        }
+        testAcc = testAcc / trials;
+        trainAcc = trainAcc / trials;
+
+        std::cout << "minSp " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
+
+
+    }
+
+    std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees." << std::endl;
+
+
+
+    for (u64 i = 5; i < 0; i += 5)
+    {
+
+        double testAcc = 0;
+        double trainAcc = 0;
+        for (u64 j = 0; j < trials; ++j)
+        {
+
+
+            RandomForest forest;
+
+            forest.learn(trainingData, i, minSplitSize);//, &testData
+
+            testAcc += forest.test(testData, 0);
+            trainAcc += forest.test(trainingData, 0);
+
+        }
+        testAcc = testAcc / trials;
+        trainAcc = trainAcc / trials;
+
+        std::cout << "trees " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
+
+        
+    }
 
     return 0;
 }

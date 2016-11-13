@@ -108,12 +108,12 @@ void BoostedMLTree::learn(
 
             std::cout
                 << " dt " << w << totalDepth << " "
-                //<< " t " << w << treeIdx << " "
+                << " k " << w << minSplit << " "
                 //<< " l1 " << w << l1
                 //<< " l2 " << w << l2
                 //<< " max " << w << maxY 
-				<< "  " << w << (train_correct * 100 / db->size()) << "%"
-                << "  " << w << (correct * 100 / evalData->size()) <<"%"<<std::endl;
+				<< " train " << w << (train_correct * 100 / db->size()) << "%"
+                << " test  " << w << (correct * 100 / evalData->size()) <<"%"<<std::endl;
         }
 
 
@@ -126,43 +126,61 @@ void BoostedMLTree::learn(
 
 
 
-void BoostedMLTree::test(
+double BoostedMLTree::test(
     std::vector<DbTuple>& testData,
     double learningRate)
 {
-    std::vector<DbTuple> updatedTestData(testData);
+   
+    // compute the predictions for each eval example.
+    // Compute the L1, L2, and max error.
+    auto* evalData = &testData;
+    double YSq = 0, YSum = 0;
+    double maxY = 0;
 
-    u64 YSq, YSum;
 
-    for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
+    double correct = 0;
+    for (u64 i = 0; i < evalData->size(); i++)
     {
-        YSq = YSum = 0;
+        auto y = (*evalData)[i].mValue;
+        //auto yprime = mTrees[treeIdx].evaluate((*evalData)[i]) * learningRate;
 
-        for (u64 i = 0; i < updatedTestData.size(); i++)
+        auto yprime = evaluate((*evalData)[i]);
+
+        auto Lprime = y - yprime;
+        bool cc = std::abs(Lprime) < .5;
+
+        std::cout << "test[" << i << "]  = " << y << "  pred " << yprime << "  " << cc << std::endl;
+
+
+        if (cc) ++correct;
+        //(*evalData)[i].mValue = Lprime;
+
+        YSum += std::abs(Lprime);
+        YSq += Lprime * Lprime;
+
+
+        if (std::abs(Lprime) > maxY)
         {
-            auto y = updatedTestData[i].mValue;
-            auto yprime = mTrees[treeIdx].evaluate(updatedTestData[i]);
-
-            auto Lprime = y - learningRate * yprime;
-
-            updatedTestData[i].mValue = Lprime;
-            //std::cout
-            //	<< "  y =" << y
-            //	<< "  y' = " << yprime
-            //	<< std::endl;
-
-
-            YSum += std::abs(Lprime);
-            YSq += Lprime * Lprime;
+            maxY = std::abs(Lprime);
         }
-
-        std::cout
-            << "=======================================================" << std::endl
-            << "avg l1 error " << double(YSum) / testData.size() << std::endl
-            << "avg l2 error " << double(YSq) / testData.size() << std::endl;
-
-
     }
+
+
+    auto w = std::setw(8);
+    auto totalDepth = getTotalDepth();
+    double l1 = double(YSum) / (*evalData).size();
+    double l2 = double(YSq) / (*evalData).size();
+    double percent = (correct * 100 / evalData->size());
+    //std::cout
+    //    << " dt " << w << totalDepth << " "
+    //    //<< " k " << w << minSplit << " "
+    //    //<< " l1 " << w << l1
+    //    //<< " l2 " << w << l2
+    //    //<< " max " << w << maxY 
+    //    << " train " << w << (train_correct * 100 / db->size()) << "%"
+    //    << " test  " << w <<  << "%" << std::endl;
+
+    return percent;
 }
 
 double BoostedMLTree::evaluate(const DbTuple & data)
@@ -172,7 +190,7 @@ double BoostedMLTree::evaluate(const DbTuple & data)
     for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
     {
         auto yprime = mTrees[treeIdx].evaluate(data);
-        auto Lprime = mLearningRate *  yprime;
+        auto Lprime =  yprime;
 
 
         //std::cout
@@ -188,7 +206,7 @@ double BoostedMLTree::evaluate(const DbTuple & data)
     }
     //std::cout << std::endl;
 
-    return y;
+    return y / mNumTrees;
 }
 
 u64 BoostedMLTree::getTotalDepth()

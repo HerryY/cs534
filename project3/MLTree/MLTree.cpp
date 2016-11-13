@@ -10,7 +10,7 @@ MLTree::MLTree()
 {
     // seed the random number generalor with the address of this class
     // Should be pretty random.
-    mPrng.SetSeed((u64)this);
+    mPrng.SetSeed(0);
 
 }
 
@@ -26,17 +26,17 @@ MLTree::~MLTree()
 // private function for report
 double indexFractionToAttributeValue(int i)
 {
-	// order: sepal length, sepal width, petal length, petal width
-	double minAttValues[] = {4.2, 2.0, 1.0, 0.1};
-	double attRanges[] = {3.7, 2.4, 5.9, 2.4};
-	int stepCount = 40;
+    // order: sepal length, sepal width, petal length, petal width
+    double minAttValues[] = { 4.2, 2.0, 1.0, 0.1 };
+    double attRanges[] = { 3.7, 2.4, 5.9, 2.4 };
+    int stepCount = 40;
 
-	double v;
-	int att = i / stepCount;		// 40 is stepcount
-	int frac = (i+1) % (stepCount+1);
-	v = minAttValues[att] + frac * attRanges[att] / stepCount;
+    double v;
+    int att = i / stepCount;		// 40 is stepcount
+    int frac = (i + 1) % (stepCount + 1);
+    v = minAttValues[att] + frac * attRanges[att] / stepCount;
 
-	return v;
+    return v;
 }
 
 void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
@@ -50,7 +50,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
     root.mIdx = 1;
     root.mDepth = 0;
 
-  
+
     // copy the full datset into the root node. It
     // will later be partioned into the leaves through
     // recursive splits
@@ -104,6 +104,22 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
         {
             // random forest tree
 
+            std::array<u64, 2> idxs;
+            idxs[0] = mPrng.get<u64>() % 4;
+            idxs[1] = mPrng.get<u64>() % 4;
+
+            while (idxs[0] == idxs[1])
+            {
+                idxs[1] = mPrng.get<u64>() % 4;
+            }
+
+            u64 min0 = idxs[0] * predSize / 4;
+            u64 max0 = (idxs[0] + 1) * predSize / 4;
+
+
+            u64 min1 = idxs[1] * predSize / 4;
+            u64 max1 = (idxs[1] + 1) * predSize / 4;
+
             std::vector<u64> validNodes;
             validNodes.reserve(predSize);
 
@@ -121,21 +137,27 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
 
                 for (u64 i = 0; i < predSize; ++i)
                 {
-                    // px is the index of what node this record would be mapped to.
-                    // its either 0 or 1 (left or right node)
-                    u8 px = row->mPreds[i];
-
-                    // add this records data to the running total
-                    updates[i][px].mYSum += y;
-                    updates[i][px].mSize++;
-
-                    // if this split i just became large enough to consider, 
-                    // then add it to the list of valid nodes. Later we 
-                    // will ranodmly pick one....
-                    if (updates[i][px].mSize == minSplitSize &&
-                        updates[i][1-px].mSize >= minSplitSize)
+                    if ((i >= min0 && i < max0)
+                        ||
+                        (i >= min1 && i < max1))
                     {
-                        validNodes.emplace_back(i);
+
+                        // px is the index of what node this record would be mapped to.
+                        // its either 0 or 1 (left or right node)
+                        u8 px = row->mPreds[i];
+
+                        // add this records data to the running total
+                        updates[i][px].mYSum += y;
+                        updates[i][px].mSize++;
+
+                        // if this split i just became large enough to consider, 
+                        // then add it to the list of valid nodes. Later we 
+                        // will ranodmly pick one....
+                        if (updates[i][px].mSize == minSplitSize &&
+                            updates[i][1 - px].mSize >= minSplitSize)
+                        {
+                            validNodes.emplace_back(i);
+                        }
                     }
                 }
             }
@@ -175,7 +197,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
                     u8 px = row->mPreds[i];
 
                     // add this records data to the running total
-                    updates[i][px].mYSum += y;                    
+                    updates[i][px].mYSum += y;
                     updates[i][px].classFreq[label]++;
                     updates[i][px].mSize++;
 
@@ -231,9 +253,9 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, bool random)
                     double childrenEntropy = p0*entropy0 + p1*entropy1;
 
                     double IG = nodeEntropy - childrenEntropy;	// information gain
-					//printf("%d, %5f, %5f\n", i, indexFractionToAttributeValue(i), IG);
-                    if (IG > bestIG) {
-                        bestIG = IG;
+                    //printf("%d, %5f, %5f\n", i, indexFractionToAttributeValue(i), IG);
+                    if (IG >= bestIG) {
+                        bestIG = IG; 
                         cur->mPredIdx = i;
                     }
                 }

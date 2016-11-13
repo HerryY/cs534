@@ -21,7 +21,7 @@ public:
 		std::vector<DbTuple>* evalData = nullptr);
 
 
-	void test(
+	double test(
 		std::vector<DbTuple>& testData,
 		double learningRate);
 

@@ -22,17 +22,41 @@ void RandomForest::learn(
     mTrees.reset(new MLTree[numTrees]);
 
     double maxY(9999);
+    PRNG prng(12423524);
 
     std::vector<DbTuple>* db = &myDB;
-    std::vector<DbTuple> updatedDB(myDB);
 
 
 
     for (i64 treeIdx = 0; treeIdx < numTrees; ++treeIdx)
     {
+        std::vector<DbTuple> randomDb;
+
+
+        for (u64 i = 0; i < myDB.size(); ++i)
+        {
+            randomDb.push_back(myDB[prng.get<u64>() % myDB.size()]);
+        }
+        //std::array<u64, 2> idxs;
+        //idxs[0] = prng.get<u64>() % 4;
+        //idxs[1] = prng.get<u64>() % 4;
+
+        //while (idxs[0] == idxs[1])
+        //{
+        //    idxs[1] = prng.get<u64>() % 4;
+        //}
+
+
+        //for (u64 i = 0; i < db->size(); ++i)
+        //{
+        //    (*db)[i].mPreds = (*db)[i].mPreds2[idxs[0]];
+        //    (*db)[i].mPreds.insert((*db)[i].mPreds.end(), (*db)[i].mPreds2[idxs[1]].begin(), (*db)[i].mPreds2[idxs[1]].end());
+        //}
+
+
 
         // learn a  simple decision tree
-        mTrees[treeIdx].learn(*db, minSplit, true);
+        mTrees[treeIdx].learn(randomDb, minSplit, true);
 
         ++mNumTrees;
 
@@ -95,42 +119,67 @@ void RandomForest::learn(
 
 
 
-void RandomForest::test(
+double RandomForest::test(
     std::vector<DbTuple>& testData,
     double learningRate)
 {
-    std::vector<DbTuple> updatedTestData(testData);
+    //std::vector<DbTuple> updatedTestData(testData);
 
+    auto* evalData = &testData;
     u64 YSq, YSum;
 
-    for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
     {
-        YSq = YSum = 0;
 
-        for (u64 i = 0; i < updatedTestData.size(); i++)
+        // compute the predictions for each eval example.
+        // Compute the L1, L2, and max error.
+
+        double YSq = 0, YSum = 0;
+        double maxY = 0;
+
+        double correct = 0;
+        for (u64 i = 0; i < evalData->size(); i++)
         {
-            auto y = updatedTestData[i].mValue;
-            auto yprime = mTrees[treeIdx].evaluate(updatedTestData[i]);
+            auto y = (*evalData)[i].mValue;
+            //auto yprime = mTrees[treeIdx].evaluate((*evalData)[i]) * learningRate;
 
-            auto Lprime = y - learningRate * yprime;
+            auto yprime = evaluate((*evalData)[i]);
 
-            updatedTestData[i].mValue = Lprime;
-            //std::cout
-            //	<< "  y =" << y
-            //	<< "  y' = " << yprime
-            //	<< std::endl;
+            auto Lprime = y - yprime;
 
+            bool cc = std::abs(Lprime) < .5;
+
+            //std::cout << "test[" << i << "]  = " << y << "  pred " << yprime << "  " << cc << std::endl;
+
+
+            if (cc) ++correct;
+            //(*evalData)[i].mValue = Lprime;
 
             YSum += std::abs(Lprime);
             YSq += Lprime * Lprime;
+
+
+            if (std::abs(Lprime) > maxY)
+            {
+                maxY = std::abs(Lprime);
+            }
         }
 
-        std::cout
-            << "=======================================================" << std::endl
-            << "avg l1 error " << double(YSum) / testData.size() << std::endl
-            << "avg l2 error " << double(YSq) / testData.size() << std::endl;
 
+        auto w = std::setw(8);
+        auto totalDepth = getTotalDepth();
+        double l1 = double(YSum) / (*evalData).size();
+        double l2 = double(YSq) / (*evalData).size();
 
+        double percent = (correct * 100 / evalData->size());
+        //std::cout
+        //    << " dt " << w << totalDepth << " "
+        //    << " #t " << w << mNumTrees << " "
+        //    << " l1 " << w << l1
+        //    << " l2 " << w << l2
+        //    << " max " << w << maxY
+        //    << "  " << w << percent << "%" << std::endl;
+
+        return percent;
     }
 }
 

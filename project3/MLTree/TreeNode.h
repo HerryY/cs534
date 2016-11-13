@@ -5,12 +5,14 @@
 #include <istream>
 
 #include <ostream>
-
+#include <array>
 class DbTuple
 {
 
 public:
-	std::vector<u8> mPreds;
+    std::array<std::vector<u8>, 4> mPreds2;
+   
+    std::vector<u8> mPreds;
 	std::vector<double> mPlain;
 	double mValue;
 };
