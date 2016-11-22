@@ -60,10 +60,13 @@ void loadIris(
     double petalWidthMax(2.5);
     double petalWidthRange = petalWidthMax - petalWidthMin;
 
+    std::array<double, 4> mins{ sepalLengthMin ,sepalWidthMin ,petalLengthMin , petalWidthMin };
+    std::array<double, 4> ranges{ sepalLengthRange ,sepalWidthRange ,petalLengthRange , petalWidthRange };
+
     // the resolution of the predicates, the greater the value, the more predicates we
     // will have and the slower the learning will be. Note that more predicates
     // doesn't always mean more accurate models...
-    u64 stepCount = 100;
+    u64 stepCount = 40;
 
     // the total number of boolean features that we want. 4 because the input
     // trainingData is 4 floating foint values
@@ -74,7 +77,7 @@ void loadIris(
     rows.clear();
 
     std::vector<std::string> words;
-
+    u64 idx = 0;
     // get the next line of the file. When there are no more lines, this will
     // return false and leave the loop.
     while (std::getline(in, line))
@@ -86,6 +89,7 @@ void loadIris(
             // add anther row to the dataset
             rows.emplace_back();
 
+            rows.back().mIdx = idx++;
             // get a reference to this row. 
             auto& row = rows.back();
 
@@ -108,12 +112,12 @@ void loadIris(
 
             // resize this rows predicates. This are the boolean features that
             // we will extract from the actual input trainingData.
-            row.mPreds.resize(numPredicates);
 
-            row.mPreds2[0].resize(stepCount);
-            row.mPreds2[1].resize(stepCount);
-            row.mPreds2[2].resize(stepCount);
-            row.mPreds2[3].resize(stepCount);
+            row.mPredsGroup.resize(4);
+            row.mPredsGroup[0].resize(stepCount);
+            row.mPredsGroup[1].resize(stepCount);
+            row.mPredsGroup[2].resize(stepCount);
+            row.mPredsGroup[3].resize(stepCount);
 
             // now compute the predicates
             for (u64 i = 0; i < stepCount; ++i)
@@ -122,34 +126,20 @@ void loadIris(
                 // within each the the ranges that the features can take.
                 double frac = (i + 1.0) / (stepCount + 1);
 
+                //std::cout 
+                //    << sepalLength << " > " << ((frac * sepalLengthRange) + sepalLengthMin) << "  " << (u32)row.mPreds[0 * stepCount + i] << "  -  "
+                //    << sepalWidth << " > " << ((frac * sepalWidthRange) + sepalWidthMin) << "  " << (u32)row.mPreds[1 * stepCount + i] << "  -  "
+                //    << petalLength << " > " << ((frac * petalLengthRange) + petalLengthMin) << "  " << (u32)row.mPreds[2 * stepCount + i] << "  -  "
+                //    << petalWidth << " > " << ((frac * petalWidthRange) + petalWidthMin) << "  " << (u32)row.mPreds[3 * stepCount + i] << "  -  "
+                //    <<std::endl;;
 
-                row.mPreds[0 * stepCount + i] = ((sepalLength - sepalLengthMin) / sepalLengthRange > frac) ? 1 : 0;
 
-                //std::cout << sepalLength << " > " << ((frac * sepalLengthRange) + sepalLengthMin) << "  " << (u32)row.mPreds[0 * stepCount + i] <<std::endl;;
-
-                row.mPreds[1 * stepCount + i] = ((sepalWidth - sepalWidthMin) / sepalWidthRange > frac) ? 1 : 0;
-                row.mPreds[2 * stepCount + i] = ((petalLength - petalLengthMin) / petalLengthRange > frac) ? 1 : 0;
-                row.mPreds[3 * stepCount + i] = ((petalWidth - petalWidthMin) / petalWidthRange > frac) ? 1 : 0;
-
-                row.mPreds2[0][i] = ((sepalLength - sepalLengthMin) / sepalLengthRange > frac) ? 1 : 0;
-                row.mPreds2[1][i] = ((sepalWidth - sepalWidthMin) / sepalWidthRange > frac) ? 1 : 0;
-                row.mPreds2[2][i] = ((petalLength - petalLengthMin) / petalLengthRange > frac) ? 1 : 0;
-                row.mPreds2[3][i] = ((petalWidth - petalWidthMin) / petalWidthRange > frac) ? 1 : 0;
+                row.mPredsGroup[0][i] = ((sepalLength - sepalLengthMin) / sepalLengthRange > frac) ? 1 : 0;
+                row.mPredsGroup[1][i] = ((sepalWidth - sepalWidthMin) / sepalWidthRange > frac) ? 1 : 0;
+                row.mPredsGroup[2][i] = ((petalLength - petalLengthMin) / petalLengthRange > frac) ? 1 : 0;
+                row.mPredsGroup[3][i] = ((petalWidth - petalWidthMin) / petalWidthRange > frac) ? 1 : 0;
             }
 
-            // compute the class value
-            /*if (tok[4] == "Iris-setosa")
-            {
-                row.mValue = 0;
-            }
-            else if (tok[4] == "Iris-versicolor")
-            {
-                row.mValue = 1;
-            }
-            else
-            {
-                row.mValue = 2;
-            }*/
             row.mValue = std::stoi(tok[4]);
         }
     }
@@ -166,20 +156,6 @@ int main(int argc, char** argv)
 
     PRNG prng(2345);
 
-    // shuffle the data so that when we split it into test and training
-    // we dont get all of one class
-    //std::shuffle(fullData.begin(), fullData.end(), prng);
-
-    //for (u64 i = 0; i < fullData.size(); ++i)
-    //{
-    //    std::cout
-    //        << fullData[i].mPlain[0] << ", "
-    //        << fullData[i].mPlain[1] << ", "
-    //        << fullData[i].mPlain[2] << ", "
-    //        << fullData[i].mPlain[3] << " => "
-    //        << fullData[i].mValue << std::endl;
-
-    //}
 
     double
         learningRate{ 1 },
@@ -193,20 +169,18 @@ int main(int argc, char** argv)
 
     u64 trials = 10;
 
-    for (u64 i = 1; i < 2; i += 2)
+    for (u64 i = 1; i < 100; i += 2)
     {
 
         double testAcc = 0;
         double trainAcc = 0;
         for (u64 j = 0; j < trials; ++j)
         {
-
-
             BoostedMLTree tree;
 
-            tree.learn(trainingData, 1,1, minSplitSize);//, &testData
+            tree.learn(trainingData, 1, 1, i);//, &testData
 
-            //testAcc += tree.test(testData, 0);
+            testAcc += tree.test(testData, 0);
             trainAcc += tree.test(trainingData, 0);
 
         }
@@ -214,39 +188,43 @@ int main(int argc, char** argv)
         trainAcc = trainAcc / trials;
 
         std::cout << "minSp " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
-
-
     }
 
-    std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees." << std::endl;
 
-
-
-    for (u64 i = 5; i < 0; i += 5)
+    for (u64 minSplitSize = 1; minSplitSize < 0; ++minSplitSize)
     {
 
-        double testAcc = 0;
-        double trainAcc = 0;
-        for (u64 j = 0; j < trials; ++j)
+
+        std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees." << std::endl;
+
+
+
+        for (u64 i = 5; i < 101; i += 5)
         {
 
+            double testAcc = 0;
+            double trainAcc = 0;
+            for (u64 j = 0; j < trials; ++j)
+            {
 
-            RandomForest forest;
 
-            forest.learn(trainingData, i, minSplitSize);//, &testData
+                RandomForest forest;
 
-            testAcc += forest.test(testData, 0);
-            trainAcc += forest.test(trainingData, 0);
+                forest.learn(trainingData, i, minSplitSize);//, &testData
+
+                testAcc += forest.test(testData, 0);
+                trainAcc += forest.test(trainingData, 0);
+
+            }
+            testAcc = testAcc / trials;
+            trainAcc = trainAcc / trials;
+
+            std::cout << "trees " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
+
 
         }
-        testAcc = testAcc / trials;
-        trainAcc = trainAcc / trials;
 
-        std::cout << "trees " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
-
-        
     }
-
     return 0;
 }
 

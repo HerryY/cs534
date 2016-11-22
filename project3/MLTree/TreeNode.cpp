@@ -6,7 +6,7 @@
 TreeNode::TreeNode()
     :mRight(nullptr),
     mLeft(nullptr),
-    mPredIdx(-1), mValue(0), mIdx(1)
+    mPredIdx({ u64(-1),u64(-1) }), mValue(0), mIdx(1)
 {
 }
 
@@ -22,8 +22,8 @@ double TreeNode::hash()
 
     for (auto row : mRows)
     {
-        for(auto p : row->mPreds)
-            sum += p;
+        for(auto p : row->mPredsGroup)
+            sum += p[0] * p[1];
 
         sum += row->mValue;
     }
@@ -33,13 +33,13 @@ double TreeNode::hash()
 
 void TreeNode::toFile(std::ostream & out)
 {
-    if (mPredIdx == -1)
+    if (mPredIdx[0] == -1)
     {
         out << "l " << mValue << std::endl;
     }
     else
     {
-        out << mPredIdx << std::endl;
+        out << mPredIdx[0] <<  "-"<< mPredIdx[1] << std::endl;
         mLeft->toFile(out);
         mRight->toFile(out);
     }

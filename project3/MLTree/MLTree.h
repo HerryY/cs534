@@ -11,14 +11,12 @@
 //typedef std::array<bool, 3> YType;
 typedef double YType;
 
-struct splitUpdate
+enum class SplitType
 {
-
-    YType mYSum;
-    u64 mSize;
-	std::array<u32, 3> classFreq;
+    Entropy,
+    Random,
+    L2
 };
-
 
 class MLTree
 {
@@ -35,11 +33,19 @@ public:
     TreeNode root;
     u64 mDepth;
 
-    void learn(std::vector<DbTuple>& myDB, u64 mMinSplitSize, bool random);
+    void learn(std::vector<DbTuple>& myDB, u64 mMinSplitSize, SplitType type);
+
+    void selectFeatures(std::vector<DbTuple> & db, SplitType type);
+
+    void randomSplit(TreeNode * cur, const u64 &minSplitSize);
+    void L2Split(TreeNode * cur, const u64 &minSplitSize);
+
+    void entropySplit(TreeNode * cur, const u64 &predSize, const u64 &minSplitSize);
 
     YType evaluate(
          const DbTuple& data);
 
+    std::vector<u8> mFeatureSelection;
 
     u64 getDepth();
 

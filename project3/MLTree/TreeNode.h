@@ -10,11 +10,12 @@ class DbTuple
 {
 
 public:
-    std::array<std::vector<u8>, 4> mPreds2;
+    std::vector<std::vector<u8>> mPredsGroup;
    
-    std::vector<u8> mPreds;
+    //std::vector<u8> mPreds;
 	std::vector<double> mPlain;
 	double mValue;
+    u64 mIdx;
 };
 
 class TreeNode
@@ -24,7 +25,9 @@ public:
 	~TreeNode();
 
 	TreeNode * mRight, *mLeft;
-	u64 mPredIdx, mIdx, mDepth;
+	u64  mIdx, mDepth;
+    std::array<u64, 2> mPredIdx;
+
 	double mValue;
 
 	std::vector<DbTuple*> mRows;

@@ -35,7 +35,7 @@ void BoostedMLTree::learn(
     {
 
         // learn a  simple decision tree
-        mTrees[treeIdx].learn(*db, minSplit, false);
+        mTrees[treeIdx].learn(*db, minSplit, SplitType::L2);
 
 
         // now subtract off learningRate * prediction from our labels.
@@ -149,7 +149,7 @@ double BoostedMLTree::test(
         auto Lprime = y - yprime;
         bool cc = std::abs(Lprime) < .5;
 
-        std::cout << "test[" << i << "]  = " << y << "  pred " << yprime << "  " << cc << std::endl;
+        //std::cout << "test[" << i << "]  = " << y << "  pred " << yprime << "  " << cc << std::endl;
 
 
         if (cc) ++correct;

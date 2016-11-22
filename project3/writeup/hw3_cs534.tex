@@ -77,12 +77,12 @@
 	
 	\begin{figure}[H]
 		\begin{center}
-			\includegraphics[width=5in]{random.pdf}
+			\includegraphics[width=5in]{random2.pdf}
 			\caption{Accuracy on test data for number of random trees.}
 		\end{center}
 	\end{figure}
 	
-\item[(e)] We observed that the training data was much more accurate in general (over fitting). This was especially true when the min node size was small. In this case the model would almost always predict everything in the training set with high accuracy. In the case that we added more random tree, with all of their randomizations, we observed that this over fitting decreased. This was especially true when $k$ was large. However, it was somewhat hard to detect because our models were already highly accurate, roughly 90+ percent for a large portion on the parameters.
+\item[(e)] We observed that the training data was much more accurate in general (over fitting). This was especially true when the min node size $k$ was small. In this case the model would almost always predict everything in the training set with high accuracy. In the case that we added more random tree, with all of their randomizations, we observed that this over fitting decreased. This was especially true when $k$ was large. However, it was somewhat hard to detect because our models were already highly accurate, roughly 90+ percent for a large portion of the parameters.
 
 In addition to reducing the over fitting of the training set, adding more trees increased the accuracy of the test dataset. However, when using reasonable parameters, we saw minimal impact of random feature selection. While it did help some when we ran many trials or had many trees, overall its impact was minimal. 
 

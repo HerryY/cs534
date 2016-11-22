@@ -56,7 +56,7 @@ void RandomForest::learn(
 
 
         // learn a  simple decision tree
-        mTrees[treeIdx].learn(randomDb, minSplit, true);
+        mTrees[treeIdx].learn(randomDb, minSplit, SplitType::Random);
 
         ++mNumTrees;
 
