@@ -11,6 +11,123 @@
 #include "Common/PRNG.h"
 #include "MLTree/RandomForest.h"
 
+
+
+void loadFromFile(
+    std::istream & in,
+    std::vector<DbTuple>& mRows,
+    bool header,
+    std::vector<std::vector<std::function<bool(const std::vector<double>&)>>>& preds,
+    std::function<double(const std::vector<double>&)>& classMap,
+    u64 maxRows = -1)
+{
+    std::string line;
+
+    if (header)
+        std::getline(in, line);
+
+    mRows.clear();
+
+    std::vector<std::string> words;
+
+    u64 i = 0;
+    while (std::getline(in, line) && maxRows--)
+    {
+
+        mRows.emplace_back();
+        auto& row = mRows.back();
+
+
+        std::vector<std::string> tok;
+        split(line, ',', tok);
+
+        for (auto iter = tok.begin(); iter != tok.end(); ++iter)
+        {
+            auto word = *iter;
+
+            double d = std::stod(word);
+
+            row.mPlain.push_back(d);
+        }
+
+        row.mPredsGroup.resize(preds.size());
+
+        for (u64 i = 0; i < preds.size(); ++i)
+        {
+
+            row.mPredsGroup[i].resize(preds[i].size());
+
+            for (u64 j = 0; j < preds[i].size(); ++j)
+            {
+                row.mPredsGroup[i][j] = preds[i][j](row.mPlain);
+            }
+        }
+
+        row.mValue = classMap(row.mPlain);
+        row.mIdx = i++;
+        //std::cout<< std::endl;
+    }
+
+}
+
+
+
+void loadCTData2(
+    std::vector<DbTuple >& fullData,
+    u64 maxRows = -1)
+{
+    std::string filePath("./slice_localization_data.csv");
+    u64 numColumns = 385;
+    u64 numDataColumns = numColumns - 2;
+
+    std::fstream in;
+    in.open(filePath, in.in);
+
+    if (in.is_open() == false)
+    {
+        filePath = std::string(SOLUTION_DIR) + "project3/MLTree/" + filePath;
+        in.open(filePath, in.in);
+    }
+
+    if (in.is_open() == false)
+    {
+        std::cout << "cant open " << filePath << std::endl;
+        throw std::runtime_error("");
+    }
+
+
+
+    u64 stepCount = 4;
+    std::vector<std::vector<std::function<bool(const std::vector<double>&)>>> preds(numDataColumns);
+
+
+    for (u64 j = 0; j < numDataColumns; ++j)
+    {
+        preds[j].resize(stepCount);
+
+        for (u64 i = 0; i < stepCount; ++i)
+        {
+            preds[j][i] = [j, i, stepCount](const std::vector<double>& t)
+            {
+                return t[j + 1] >= ((i)/ double(stepCount));
+            };
+        }
+    }
+
+    std::function<double(const std::vector<double>&)> classMap = [](const std::vector<double>& t)
+    {
+        return t.back();// -50;
+    };
+
+    loadFromFile(in, fullData, true, preds, classMap, maxRows);
+
+    //// center the data
+    //for (auto& row : fullData)
+    //    row.mValue -= 50;
+
+}
+
+
 void loadIris(
     std::vector<DbTuple >& rows, std::string filePath)
 {
@@ -150,44 +267,87 @@ void loadIris(
 int main(int argc, char** argv)
 {
 
-    std::vector<DbTuple > trainingData, testData;
-    loadIris(trainingData, "./iris-train.csv");
-    loadIris(testData, "./iris-test.csv");
 
-    PRNG prng(2345);
+
+    //std::vector<DbTuple > trainingData, testData;
+    //loadIris(trainingData, "./iris-train.csv");
+    //loadIris(testData, "./iris-test.csv");
+
+
+    std::vector<DbTuple > fullData, trainingData, testData, valData;
+    loadCTData2(fullData);
+
+    PRNG prng(0);
+    std::shuffle(fullData.begin(), fullData.end(), prng);
+
+    u64 i = 0;
+    u64 foldCount =10;
+
+
+    //valData.insert(
+    //    valData.begin(),
+    //    fullData.end() - (fullData.size() / foldCount),
+    //    fullData.end());
+
+    //fullData.resize(fullData.size() - valData.size());
+
+
+
+    trainingData.insert(
+        trainingData.end(),
+        fullData.begin(),
+        fullData.begin() + (i * fullData.size() / foldCount));
+
+    trainingData.insert(
+        trainingData.end(),
+        fullData.begin() + ((i + 1) * fullData.size() / foldCount),
+        fullData.end());
+
+    testData.clear();
+    testData.insert(
+        testData.begin(),
+        fullData.begin() + (i * fullData.size() / foldCount),
+        fullData.begin() + ((i + 1) * fullData.size() / foldCount));
+
+    //std::cout << "test  " << testData.front().mIdx << "  " << testData.back().mIdx << std::endl;
+    //std::cout << "train " << trainingData.front().mIdx << "  " << trainingData.back().mIdx << std::endl;
+
 
 
     double
-        learningRate{ 1 },
-        numTrees{ 5 },
-        minSplitSize{ 1 };
+        learningRate{ 0.05 },
+        numTrees{ 150 },
+        minSplitSize{ 10 },
+        maxDepth{ 100000 },
+        maxLeafCount{ 5000000 },
+        epsilon{ 0.01 };
 
 
 
     std::cout << "single tree using minSplitSize = " << minSplitSize << std::endl;
 
+    u64 trials = 1;
 
-    u64 trials = 10;
-
-    for (u64 i = 1; i < 100; i += 2)
+    //for (u64 i = 10; i < 11; i += 2)
     {
 
         double testAcc = 0;
-        double trainAcc = 0;
-        for (u64 j = 0; j < trials; ++j)
+        //double trainAcc = 0;
+        //for (u64 j = 0; j < trials; ++j)
         {
             BoostedMLTree tree;
+            tree.mPrng.SetSeed(prng.get<u64>());
 
-            tree.learn(trainingData, 1, 1, i);//, &testData
+            tree.learn(trainingData, numTrees, learningRate, minSplitSize, maxDepth, maxLeafCount, SplitType::L2Laplace, epsilon, &testData);
 
-            testAcc += tree.test(testData, 0);
-            trainAcc += tree.test(trainingData, 0);
+            //testAcc += tree.test(valData, "validation ");
+            //trainAcc += tree.test(trainingData, 0);
 
         }
-        testAcc = testAcc / trials;
-        trainAcc = trainAcc / trials;
+    //    testAcc = testAcc / trials;
+    //    trainAcc = trainAcc / trials;
 
-        std::cout << "minSp " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
+        //std::cout << "minSp " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
     }
 
 

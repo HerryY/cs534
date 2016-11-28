@@ -4,6 +4,7 @@
 #include <array>
 #include "Common/Timer.h"
 #include <atomic>
+#include "Laplace.h"
 
 MLTree::MLTree()
     :mDepth(0)
@@ -39,7 +40,8 @@ double indexFractionToAttributeValue(int i)
     return v;
 }
 
-void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, SplitType type)
+void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
+    u64 maxLeafCount, SplitType type, double nodeEpsilon)
 {
     // initialize some member variables
     mDepth = 0;
@@ -84,7 +86,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, SplitType type)
 
 
     // while we still have more nodes that need splitting
-    while (nextList.size())
+    while (nextList.size() && nextList.size() + mLeafNodes.size() < maxLeafCount)
     {
         // the pointer to the current node being split
         TreeNode*cur = nextList.back();
@@ -105,6 +107,9 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, SplitType type)
             break;
         case SplitType::L2:
             L2Split(cur, minSplitSize);
+            break;
+        case SplitType::L2Laplace:
+            L2LaplaceSplit(cur, minSplitSize, nodeEpsilon);
             break;
         default:
             throw std::runtime_error(LOCATION);
@@ -166,7 +171,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, SplitType type)
         }
     }
 
-
+    mLeafNodes.insert(mLeafNodes.begin(), nextList.begin(), nextList.end());
 
     // for each leaf node, compute its average label and use that as a prediction
     // the majority label could work too if we are not doing ABA boosting.
@@ -307,17 +312,6 @@ void MLTree::L2Split(TreeNode * cur, const u64 & minSplitSize)
 
         auto y = row->mValue;
 
-        //for (u64 i = 0; i < predSize; ++i)
-        //{
-        //    // px is the index of what node this record would be mapped to.
-        //    // its either 0 or 1 (left or right node)
-        //    u8 px = row->mPreds[i];
-
-        //    // add this records data to the running total
-        //    updates[i][px].mYSum += y;
-        //    updates[i][px].mSize++;
-
-        //}
 
         for (u64 k = 0; k < mFeatureSelection.size(); ++k)
         {
@@ -361,6 +355,101 @@ void MLTree::L2Split(TreeNode * cur, const u64 & minSplitSize)
                 if (variance < bestVariance)
                 {
                     bestVariance = variance;
+                    cur->mPredIdx = { i,l };
+                }
+            }
+        }
+    }
+}
+
+void MLTree::L2LaplaceSplit(TreeNode * cur, const u64 & minSplitSize, double nodeEpsilon)
+{
+
+    struct splitUpdate
+    {
+        splitUpdate() : mYSum(0), mSize(0) {}
+        YType mYSum;
+        u64 mSize;
+    };
+
+    std::vector<std::vector<std::array<splitUpdate, 2>>>
+        updates(mFeatureSelection.size());
+
+    for (u64 i = 0; i < updates.size(); ++i)
+    {
+        // the L2 loss function need the size of each node
+        // and the sum of the labels for this node. 
+        // This pair is for the right node of a canidate split
+
+        updates[i].resize(cur->mRows[0]->mPredsGroup[i].size());
+    }
+
+    double average = 0;
+    u64 count = 0;
+
+    for (auto j = 0; j < cur->mRows.size(); ++j)
+    {
+        // for each record that is in the current node
+        // see what node it would be mapped to if we used 
+        // the j'th split
+
+        auto& row = cur->mRows[j];
+
+        auto y = row->mValue;
+
+
+        for (u64 k = 0; k < mFeatureSelection.size(); ++k)
+        {
+            // see if this feature has been selected for this random tree.
+            if (mFeatureSelection[k])
+            {
+                for (u64 l = 0; l < row->mPredsGroup[k].size(); ++l)
+                {
+                    // px is the index of what node this record would be mapped to.
+                    // its either 0 or 1 (left or right node)
+                    u8 px = row->mPredsGroup[k][l];
+
+                    // add this records data to the running total
+                    updates[k][l][px].mYSum += y;
+                    updates[k][l][px].mSize++;
+                    average += std::abs(y);
+                    ++count;
+                }
+            }
+        }
+    }
+
+    average = average / count;
+
+    Laplace lap(mPrng.get<u64>(), average / nodeEpsilon);
+
+    // now lets compute which split is the best using the L2 loss function
+    double bestVariance = 99999999999999;
+
+    for (u64 i = 0; i < updates.size(); ++i)
+    {
+        for (u64 l = 0; l < updates[i].size(); ++l)
+        {
+            // for each potential split, make sure that it is of minimal size
+            if (updates[i][l][0].mSize >= minSplitSize &&
+                updates[i][l][1].mSize >= minSplitSize)
+            {
+                double noise = lap.get();
+
+                // compute the L2 loss fucntion. (its been slightly modified since we only care about relative improvement)
+                double variance
+                    = -updates[i][l][0].mYSum * updates[i][l][0].mYSum / updates[i][l][0].mSize
+                    + -updates[i][l][1].mYSum * updates[i][l][1].mYSum / updates[i][l][1].mSize
+                    ;
+
+                double noisyVar = noise + variance;
+
+                // if the loss using this split is less that the 
+                // loss incured by the other splits, make this one 
+                // as the best
+                if (noisyVar < bestVariance)
+                {
+                    bestVariance = noisyVar;
                     cur->mPredIdx = { i,l };
                 }
             }

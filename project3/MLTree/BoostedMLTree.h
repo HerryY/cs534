@@ -2,7 +2,7 @@
 #include "MLTree.h"
 #include <vector>
 #include <functional>
-
+#include "Common/PRNG.h"
 
 
 class BoostedMLTree
@@ -19,12 +19,16 @@ public:
 		u64 numTrees,
 		double learningRate,
         u64 minSplit,
-		std::vector<DbTuple>* evalData = nullptr);
+        u64 maxDepth,
+        u64 maxLeafCount,
+        SplitType type,
+        double epsilon,
+        std::vector<DbTuple>* evalData = nullptr);
 
-
+    PRNG mPrng;
 	double test(
-		std::vector<DbTuple>& testData,
-		double learningRate);
+		std::vector<DbTuple>& testData, 
+        std::string name = "");
 
 	double evaluate(const DbTuple&);
 
