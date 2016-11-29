@@ -1,5 +1,5 @@
 #include "MLTree.h"
-#include "Common\Defines.h"
+#include "Common/Defines.h"
 
 #include <array>
 #include "Common/Timer.h"
@@ -19,8 +19,8 @@ MLTree::MLTree()
 MLTree::~MLTree()
 {
 
-    deleteNode(root.mLeft);
-    deleteNode(root.mRight);
+    //deleteNode(root.mLeft);
+    //deleteNode(root.mRight);
 
 }
 
@@ -93,29 +93,32 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
 
         // remove it from the list, marking it as being processed
         nextList.pop_back();
-        cur->mPredIdx = {u64( -1) , u64(-1) };
+        cur->mPredIdx = { u64(-1) , u64(-1) };
 
-
-        switch (type)
+        if (cur->mDepth < maxDepth)
         {
-        case SplitType::Entropy:
-            entropySplit(cur, predSize, minSplitSize);
-            break;
-        case SplitType::Random:
-            // currently assumes 3 classes...
-            randomSplit(cur, minSplitSize);
-            break;
-        case SplitType::L2:
-            L2Split(cur, minSplitSize);
-            break;
-        case SplitType::L2Laplace:
-            L2LaplaceSplit(cur, minSplitSize, nodeEpsilon);
-            break;
-        default:
-            throw std::runtime_error(LOCATION);
-            break;
-        }
 
+            switch (type)
+            {
+            case SplitType::Entropy:
+                entropySplit(cur, predSize, minSplitSize);
+                break;
+            case SplitType::Random:
+                // currently assumes 3 classes...
+                randomSplit(cur, minSplitSize);
+                break;
+            case SplitType::L2:
+                L2Split(cur, minSplitSize);
+                break;
+            case SplitType::L2Laplace:
+                L2LaplaceSplit(cur, minSplitSize, nodeEpsilon);
+                break;
+            default:
+                throw std::runtime_error(LOCATION);
+                break;
+            }
+
+        }
 
         // if we found a predicate (at least one was of min split size), then
         // lets use it and copy our data into the new codes.
@@ -126,8 +129,8 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
             std::array<TreeNode*, 2> nodes = { new TreeNode(),new TreeNode() };
 
             // connect them to the parent
-            cur->mLeft = nodes[0];
-            cur->mRight = nodes[1];
+            cur->mLeft.reset(nodes[0]);
+            cur->mRight.reset(nodes[1]);
 
             // do some book keeping, used for debug
             nodes[0]->mIdx = cur->mIdx << 1;
@@ -592,7 +595,7 @@ double MLTree::evaluate(const DbTuple & row)
     {
 
         auto px = row.mPredsGroup[cur->mPredIdx[0]][cur->mPredIdx[1]];
-        cur = px ? cur->mRight : cur->mLeft;
+        cur = px ? cur->mRight.get() : cur->mLeft.get();
 
     }
 
@@ -605,16 +608,16 @@ u64 MLTree::getDepth()
     return mDepth;
 }
 
-void MLTree::deleteNode(TreeNode *& node)
-{
-    if (node)
-    {
-        deleteNode(node->mLeft);
-        deleteNode(node->mRight);
-
-
-        delete node;
-        node = nullptr;
-    }
-
-}
+//void MLTree::deleteNode(TreeNode *& node)
+//{
+//    if (node)
+//    {
+//        deleteNode(node->mLeft);
+//        deleteNode(node->mRight);
+//
+//
+//        delete node;
+//        node = nullptr;
+//    }
+//
+//}

@@ -5,6 +5,7 @@
 #include <fstream>
 #include <numeric>
 BoostedMLTree::BoostedMLTree()
+    :mOut(&std::cout)
 {
 }
 
@@ -193,7 +194,7 @@ double BoostedMLTree::test(
     double l1 = double(YSum) / (*evalData).size();
     double l2 = double(YSq) / (*evalData).size();
     double percent = (correct * 100 / evalData->size());
-    std::cout
+    *mOut
         << name << " dt " << w << totalDepth << " "
         //<< " k " << w << minSplit << " "
         << " l1 " << w << l1

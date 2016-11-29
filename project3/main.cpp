@@ -10,8 +10,9 @@
 #include <algorithm>
 #include "Common/PRNG.h"
 #include "MLTree/RandomForest.h"
-
-
+#include <thread>
+#include <string>
+#include <future>
 
 void loadFromFile(
     std::istream & in,
@@ -109,7 +110,7 @@ void loadCTData2(
         {
             preds[j][i] = [j, i, stepCount](const std::vector<double>& t)
             {
-                return t[j + 1] >= ((i)/ double(stepCount));
+                return t[j + 1] >= ((i) / double(stepCount));
             };
         }
     }
@@ -281,7 +282,7 @@ int main(int argc, char** argv)
     std::shuffle(fullData.begin(), fullData.end(), prng);
 
     u64 i = 0;
-    u64 foldCount =10;
+    u64 foldCount = 10;
 
 
     //valData.insert(
@@ -314,77 +315,180 @@ int main(int argc, char** argv)
 
 
 
-    double
-        learningRate{ 0.05 },
-        numTrees{ 150 },
-        minSplitSize{ 10 },
-        maxDepth{ 100000 },
-        maxLeafCount{ 5000000 },
-        epsilon{ 0.01 };
+    std::vector<double>
+        learningRates{ /*0.1,*/ 0.05 },
+        epsilons{ /*0.1, 0.01, 0.001*/ 0.0001 };
+    std::vector<i64>
+        numTreess{/* 100,*/ 200 },
+        minSplitSizes{ 1/*, 10, 100, 1000*/ },
+        maxDepths{ 10, 100, 1000/*, -1*/ },
+        maxLeafCounts{/* 25, 100, 1000,*/ -1 };
 
+    std::vector<SplitType> types
+    {
+        SplitType::L2,
+        SplitType::L2Laplace
+    };
 
-
-    std::cout << "single tree using minSplitSize = " << minSplitSize << std::endl;
+    //std::cout << "single tree using minSplitSize = " << minSplitSize << std::endl;
 
     u64 trials = 1;
 
-    //for (u64 i = 10; i < 11; i += 2)
+    std::vector<std::function<void()>> funcs;
+    //std::vector<std::thread> thrds;
+    //std::vector<std::future<void>> futures;
+    std::fstream master;
+    master.open(SOLUTION_DIR "master.txt", std::ios::trunc | std::ios::out);
+    if (master.is_open() == false)
     {
-
-        double testAcc = 0;
-        //double trainAcc = 0;
-        //for (u64 j = 0; j < trials; ++j)
-        {
-            BoostedMLTree tree;
-            tree.mPrng.SetSeed(prng.get<u64>());
-
-            tree.learn(trainingData, numTrees, learningRate, minSplitSize, maxDepth, maxLeafCount, SplitType::L2Laplace, epsilon, &testData);
-
-            //testAcc += tree.test(valData, "validation ");
-            //trainAcc += tree.test(trainingData, 0);
-
-        }
-    //    testAcc = testAcc / trials;
-    //    trainAcc = trainAcc / trials;
-
-        //std::cout << "minSp " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
+        std::cout << "failed to open file: " << SOLUTION_DIR "master.txt" << "  " /*<< std::strerror_s(errno)*/ << std::endl;
+        throw std::runtime_error(LOCATION);
     }
 
+    std::mutex masterMtx;
 
-    for (u64 minSplitSize = 1; minSplitSize < 0; ++minSplitSize)
+    u64 jj = 0;
+    for (auto learningRate : learningRates)
     {
-
-
-        std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees." << std::endl;
-
-
-
-        for (u64 i = 5; i < 101; i += 5)
+        for (auto numTrees : numTreess)
         {
-
-            double testAcc = 0;
-            double trainAcc = 0;
-            for (u64 j = 0; j < trials; ++j)
+            for (auto minSplitSize : minSplitSizes)
             {
+                for (auto maxDepth : maxDepths)
+                {
+                    for (auto maxLeafCount : maxLeafCounts)
+                    {
+                        for (auto epsilon : epsilons)
+                        {
+                            for (auto type : types)
+                            {
+                                auto j = jj++;
+                                //futures.emplace_back(std::async(
+                                funcs.emplace_back(
+                                        [&,j, learningRate, numTrees, minSplitSize, maxDepth, maxLeafCount, epsilon, type]()
+                                {
+                                    BoostedMLTree tree;
+                                    std::fstream out;
+                                    std::string name =
+                                         "/eval_lr" + std::to_string(learningRate)
+                                        + "_nT" + std::to_string(numTrees)
+                                        + "_mS" + std::to_string(minSplitSize)
+                                        + "_mD" + std::to_string(maxDepth)
+                                        + "_mL" + std::to_string(maxLeafCount)
+                                        + "_e" + std::to_string(epsilon)
+                                        + (type == SplitType::L2 ? "_L2" : "_Lap")
+                                        + ".txt";
 
+                                    out.open(SOLUTION_DIR + name, std::ios::trunc | std::ios::out);
 
-                RandomForest forest;
+                                    if (out.is_open() == false)
+                                    {
+                                        std::cout << "failed to open file: " << SOLUTION_DIR + name << "  " /*<< std::strerror_s(errno)*/ << std::endl;
+                                        throw std::runtime_error(LOCATION);
+                                    }
 
-                forest.learn(trainingData, i, minSplitSize);//, &testData
+                                    tree.mOut = &out;
 
-                testAcc += forest.test(testData, 0);
-                trainAcc += forest.test(trainingData, 0);
+                                    tree.mPrng.SetSeed(prng.get<u64>());
 
+                                    tree.learn(trainingData, numTrees, learningRate, minSplitSize, maxDepth, maxLeafCount, type, epsilon, &testData);
+
+                                    masterMtx.lock();
+
+                                    tree.mOut = &master;
+
+                                    tree.test(testData, name);
+                                    masterMtx.unlock();
+
+                                //}));
+                                });
+                            }
+                        }
+                    }
+                }
             }
-            testAcc = testAcc / trials;
-            trainAcc = trainAcc / trials;
-
-            std::cout << "trees " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
-
-
         }
-
     }
+
+    std::mutex mtx;
+    u64 numThrds = std::min(u32(32), std::thread::hardware_concurrency());
+
+    std::vector<std::thread> thrds(numThrds);
+    std::cout << numThrds << " threads working on " << funcs.size() << " tasks" << std::endl;
+    std::atomic<u64>j(0);
+
+    for (u64 i = 0; i < numThrds; ++i)
+    {
+        thrds[i] = std::thread([&]()
+        {
+            std::function<void()> func;
+
+            while (true)
+            {
+                mtx.lock();
+                if (funcs.size())
+                {
+                    func = funcs.back();
+                    funcs.pop_back();
+                    mtx.unlock();
+
+                    func();
+                    std::cout << "\r" << j++ << "done            ";
+
+                }
+                else
+                {
+                    mtx.unlock();
+                    return;
+                }
+            }
+
+        });
+    }
+
+    //std::cout << std::max(futures.size(), thrds.size()) << " threads at work" << std::endl;
+    i = 1;
+
+    for (auto& thrd : thrds)
+    {
+        thrd.join();
+    }
+    std::cout << "\r"<< funcs.size() << " done" << std::endl;
+
+    //for (u64 minSplitSize = 1; minSplitSize < 0; ++minSplitSize)
+    //{
+
+
+    //    //std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees." << std::endl;
+
+
+
+    //    for (u64 i = 5; i < 101; i += 5)
+    //    {
+
+    //        double testAcc = 0;
+    //        double trainAcc = 0;
+    //        for (u64 j = 0; j < trials; ++j)
+    //        {
+
+
+    //            RandomForest forest;
+
+    //            forest.learn(trainingData, i, minSplitSize);//, &testData
+
+    //            testAcc += forest.test(testData, 0);
+    //            trainAcc += forest.test(trainingData, 0);
+
+    //        }
+    //        testAcc = testAcc / trials;
+    //        trainAcc = trainAcc / trials;
+
+    //        std::cout << "trees " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
+
+
+    //    }
+
+    //}
     return 0;
 }
 

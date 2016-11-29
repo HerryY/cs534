@@ -1,0 +1,74 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{nips15submit_e,times}
+\usepackage{hyperref}
+\usepackage{url}
+%\documentstyle[nips14submit_09,times,art10]{article} % For LaTeX 2.09
+
+
+\title{Larp - Laplace Additive Regression Trees}
+
+
+\author{Peter Rindal 
+\And
+Trung Viet Vu 
+\And
+Hung Viet Le}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\nipsfinalcopy % Uncomment for camera-ready version
+
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+
+TODO
+
+\end{abstract}
+
+\section{Introduction}
+
+introduce the problem. See the dart paper for a good intro. We want to frame it as the MART algorithm suffers from later trees not contributing much and that the consecutive trees have too much in common. i.e. the same predicates are often chosen between consecutive tree when the learning rate/shrinkage is small , e.g. 0.05. 
+
+\section{Related Work}
+
+Hung, can you do this section?
+
+\subsection{Mart - Random Forest Hybrid}
+
+
+
+maybe one of you can write this. Talk about how our randomization technique allows a smooth transition between a random forest technique and the original MART. This can be tuned and talk about how the use of the laplace random variable effects this randomization. I.e. if one predicate/split is significantly better, then it will still be pick with good probability (assuming a moderate amount of noise.)
+
+
+
+
+\subsection{Differential Privacy }
+
+peter can write this
+
+\section{Over Specialization}
+
+cite the dart paper and talk about the same thing...
+
+\section{The Larp Algorithm}
+
+introduce the algorithm formally. Its simply Mart with noise added to the splits loss function.
+
+\section{Evaluation}
+
+\section{Conclusion}
+
+\end{document}

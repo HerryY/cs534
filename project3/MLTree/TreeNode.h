@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "Common\Defines.h"
+#include "Common/Defines.h"
 #include <istream>
 
 #include <ostream>
@@ -24,7 +24,7 @@ public:
 	TreeNode();
 	~TreeNode();
 
-	TreeNode * mRight, *mLeft;
+	std::unique_ptr<TreeNode> mRight, mLeft;
 	u64  mIdx, mDepth;
     std::array<u64, 2> mPredIdx;
 

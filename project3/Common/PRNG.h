@@ -7,7 +7,7 @@
 #define SEED_SIZE   AES_BLK_SIZE
 #define RAND_SIZE   AES_BLK_SIZE
 
-
+#include <cstring>
 
 
     class PRNG
@@ -54,7 +54,7 @@
                 u64 step = std::min(lengthu8, mBufferByteCapacity - mBytesIdx);
 
                 memcpy(destu8, ((u8*)mBuffer.data()) + mBytesIdx, step);
-
+                
                 destu8 += step;
                 lengthu8 -= step;
                 mBytesIdx += step;

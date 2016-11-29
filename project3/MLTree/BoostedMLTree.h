@@ -34,6 +34,7 @@ public:
 
 	double mLearningRate;
 
+    std::ostream* mOut;
 	u64 getTotalDepth();
 	u64 mNumTrees;
 };

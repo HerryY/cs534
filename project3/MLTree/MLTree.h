@@ -52,6 +52,6 @@ public:
     u64 getDepth();
 
 private: 
-    void deleteNode(TreeNode*& node);
+    //void deleteNode(TreeNode*& node);
 };
 
