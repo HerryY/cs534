@@ -9,6 +9,7 @@
 MLTree::MLTree()
     :mDepth(0)
     , mLeafCount(0)
+    , mMuteFactor(0)
 {
     // seed the random number generalor with the address of this class
     // Should be pretty random.
@@ -44,6 +45,7 @@ double indexFractionToAttributeValue(int i)
 void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
     u64 maxLeafCount, SplitType type, double nodeEpsilon)
 {
+
     // initialize some member variables
     mDepth = 0;
     mNodeCount = 1;
@@ -53,20 +55,6 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
     root.mIdx = 1;
     root.mDepth = 0;
 
-
-    // copy the full datset into the root node. It
-    // will later be partioned into the leaves through
-    // recursive splits
-    root.mRows.resize(db.size());
-    for (u64 i = 0; i < db.size(); ++i)
-    {
-        root.mRows[i] = &db[i];
-    }
-
-    // add it to the next list, this indicates
-    // that this node has not been split yet.
-    nextList.push_back(&root);
-
     // This update vector holds information that we need 
     // to compute the best split value. we will have 
     // two splitUpdate s for each predicate, one for each
@@ -74,7 +62,6 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
     u64 predSize = 0;
     for (u64 i = 0; i < db[0].mPredsGroup.size(); ++i)
         predSize += db[0].mPredsGroup[i].size();
-
 
     // select the features that this tree should use.
     // the caller can override this by presetting
@@ -85,48 +72,64 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
         selectFeatures(db, type);
     }
 
+    // copy the full datset into the root node. It
+    // will later be partioned into the leaves through
+    // recursive splits
+    root.mRows.resize(db.size());
+    for (u64 i = 0; i < db.size(); ++i)
+    {
+        root.mRows[i] = &db[i];
+    }
+
+    switch (type)
+    {
+    case SplitType::Entropy:
+        entropySplit(&root, predSize, minSplitSize);
+        break;
+    case SplitType::Random:
+        // currently assumes 3 classes...
+        randomSplit(&root, minSplitSize);
+        break;
+    case SplitType::L2:
+    case SplitType::Dart:
+        L2Split(&root, minSplitSize);
+        break;
+    case SplitType::L2Laplace:
+        L2LaplaceSplit(&root, minSplitSize, nodeEpsilon);
+        break;
+    default:
+        throw std::runtime_error(LOCATION);
+        break;
+    }
+    //std::cout << "push loss " << root.mLoss << std::endl;
+
+    // add it to the next list, this indicates
+    // that this node has not been split yet.
+    nextList.push(QueueItem(&root, root.mLoss));
+
+
+
 
     // while we still have more nodes that need splitting
-    while (nextList.size() && nextList.size() + mLeafNodes.size() < maxLeafCount)
+    while (nextList.size())
     {
+
+        u64 leafCount = mLeafNodes.size() + nextList.size();
+
         // the pointer to the current node being split
-        TreeNode*cur = nextList.back();
+        TreeNode*cur = nextList.top().mNode;
+
+        //std::cout << "Pop  loss " << cur->mLoss << std::endl;
 
         // remove it from the list, marking it as being processed
-        nextList.pop_back();
-        cur->mPredIdx = { u64(-1) , u64(-1) };
+        nextList.pop();
 
-        if (cur->mDepth < maxDepth)
-        {
-
-            switch (type)
-            {
-            case SplitType::Entropy:
-                entropySplit(cur, predSize, minSplitSize);
-                break;
-            case SplitType::Random:
-                // currently assumes 3 classes...
-                randomSplit(cur, minSplitSize);
-                break;
-            case SplitType::L2:
-            case SplitType::Dart:
-                L2Split(cur, minSplitSize);
-                break;
-            case SplitType::L2Laplace:
-                L2LaplaceSplit(cur, minSplitSize, nodeEpsilon);
-                break;
-            default:
-                throw std::runtime_error(LOCATION);
-                break;
-            }
-
-        }
 
         // if we found a predicate (at least one was of min split size), then
         // lets use it and copy our data into the new codes.
-        if (cur->mPredIdx[0] != -1)
+        if (cur->mPredIdx[0] != -1 && leafCount < maxLeafCount)
         {
-
+            
             // these are the two new nodes that were prodiced by this split
             std::array<TreeNode*, 2> nodes = { new TreeNode(),new TreeNode() };
 
@@ -156,16 +159,46 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
             cur->mRows.clear();
             cur->mRows.shrink_to_fit();
 
+
+            for (auto& node : nodes)
+            {
+                if (node->mDepth < maxDepth)
+                {
+                    switch (type)
+                    {
+                    case SplitType::Entropy:
+                        entropySplit(node, predSize, minSplitSize);
+                        break;
+                    case SplitType::Random:
+                        // currently assumes 3 classes...
+                        randomSplit(node, minSplitSize);
+                        break;
+                    case SplitType::L2:
+                    case SplitType::Dart:
+                        L2Split(node, minSplitSize);
+                        break;
+                    case SplitType::L2Laplace:
+                        L2LaplaceSplit(node, minSplitSize, nodeEpsilon);
+                        break;
+                    default:
+                        throw std::runtime_error(LOCATION);
+                        break;
+                    }
+                }
+            }
+
+            //std::cout << "push loss " << nodes[0]->mLoss << std::endl;
+            //std::cout << "push loss " << nodes[1]->mLoss << std::endl;
+
             // make these two nodes as being real to be split
-            nextList.push_back(nodes[0]);
-            nextList.push_back(nodes[1]);
+            nextList.push(QueueItem(nodes[0], nodes[0]->mLoss));
+            nextList.push(QueueItem(nodes[1], nodes[1]->mLoss));
 
             // update the total depth of the tree, used for debugging 
             mDepth = std::max(mDepth, nodes[0]->mDepth);
 
             // update the total number of node, used for debugginh
             mNodeCount += 2;
-
         }
         else
         {
@@ -176,7 +209,6 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
         }
     }
 
-    mLeafNodes.insert(mLeafNodes.begin(), nextList.begin(), nextList.end());
 
     mLeafCount = mLeafNodes.size();
 
@@ -281,6 +313,10 @@ void MLTree::randomSplit(TreeNode * cur, const u64 &minSplitSize)
     if (validNodes.size())
     {
         u64 idx = mPrng.get<u64>() % validNodes.size();
+
+        // ensurestemp that the largest nodes get split....
+        cur->mLoss = -double(cur->mRows.size());
+
         cur->mPredIdx = validNodes[idx];
     }
 
@@ -340,7 +376,8 @@ void MLTree::L2Split(TreeNode * cur, const u64 & minSplitSize)
     }
 
     // now lets compute which split is the best using the L2 loss function
-    i64 bestVariance = 99999999999999;
+
+    cur->mLoss = 9999999999999;;
 
     for (u64 i = 0; i < updates.size(); ++i)
     {
@@ -359,9 +396,9 @@ void MLTree::L2Split(TreeNode * cur, const u64 & minSplitSize)
                 // if the loss using this split is less that the 
                 // loss incured by the other splits, make this one 
                 // as the best
-                if (variance < bestVariance)
+                if (variance < cur->mLoss)
                 {
-                    bestVariance = variance;
+                    cur->mLoss = variance;
                     cur->mPredIdx = { i,l };
                 }
             }
@@ -431,7 +468,7 @@ void MLTree::L2LaplaceSplit(TreeNode * cur, const u64 & minSplitSize, double nod
     Laplace lap(mPrng.get<u64>(), average / nodeEpsilon);
 
     // now lets compute which split is the best using the L2 loss function
-    double bestVariance = 99999999999999;
+    cur->mLoss = 9999999999999;;
 
     for (u64 i = 0; i < updates.size(); ++i)
     {
@@ -454,9 +491,9 @@ void MLTree::L2LaplaceSplit(TreeNode * cur, const u64 & minSplitSize, double nod
                 // if the loss using this split is less that the 
                 // loss incured by the other splits, make this one 
                 // as the best
-                if (noisyVar < bestVariance)
+                if (noisyVar <  cur->mLoss)
                 {
-                    bestVariance = noisyVar;
+                    cur->mLoss = noisyVar;
                     cur->mPredIdx = { i,l };
                 }
             }
@@ -595,7 +632,7 @@ double MLTree::evaluate(const DbTuple & row)
     TreeNode* cur = &root;
 
     // traverse the tree until we get to a leaf. 
-    while (cur->mPredIdx[0] != -1)
+    while (cur->hasChildren())
     {
 
         auto px = row.mPredsGroup[cur->mPredIdx[0]][cur->mPredIdx[1]];

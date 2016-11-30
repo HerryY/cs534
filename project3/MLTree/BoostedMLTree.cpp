@@ -34,7 +34,6 @@ void BoostedMLTree::learn(
     double maxY(9999);
 
     std::vector<DbTuple> updatedDB(myDB);
-
     mType = type;
 
     for (i64 treeIdx = 0; treeIdx < numTrees; ++treeIdx)
@@ -44,26 +43,21 @@ void BoostedMLTree::learn(
 
         // learn a  simple decision tree
         mTrees[treeIdx].learn(updatedDB, minSplit, maxDepth, maxLeafCount, type, epsilon);
-        //++mNumTrees;
+
+
+        if (evalData)
+        {
+            test(*evalData, std::string("@") + std::to_string(treeIdx));
+        }
+
 
         if (type != SplitType::Random && type != SplitType::Dart)
         {
             boostUpdate(updatedDB, learningRate, treeIdx);
         }
-        else if (type == SplitType::Dart)
+        else if (type == SplitType::Dart && treeIdx != numTrees - 1)
         {
-            dartUpdate(treeIdx, dartProb, myDB, updatedDB, learningRate);
-
-        }
-
-        // evalute the current performance of the model
-        if (evalData)//&& ((treeIdx % 10 == 0) || treeIdx == numTrees - 1)
-        {
-
-            // compute the predictions for each eval example.
-            // Compute the L1, L2, and max error.
-
-            test(*evalData, std::string("@") + std::to_string(treeIdx));
+            dartUpdate(myDB, updatedDB,  treeIdx + 1, dartProb);
         }
 
 
@@ -75,60 +69,61 @@ void BoostedMLTree::learn(
 }
 
 void BoostedMLTree::dartUpdate(
-    const i64 &treeIdx, 
-    double dartProb, 
     const std::vector<DbTuple> &db,
     std::vector<DbTuple> &updatedDB,
-    double learningRate)
+    u64 size, 
+    double dropProb)
 {
-    std::vector<u8> dropList(treeIdx + 1);
-    for (u64 i = 0; i <= treeIdx; ++i)
+    double check = 0;
+    std::vector<u8> dropList(size);
+    u64 k = 0;
+    for (u64 i = 0; i < dropList.size(); ++i)
     {
         double v = mPrng.get<u32>();
 
-        double threshold = (u32(-1) * dartProb);
+        double threshold = (u32(-1) * dropProb);
 
         dropList[i] = (v < threshold);
 
+        if (dropList[i]) ++k;
 
+
+        check += mTrees[i].mMuteFactor;
         //std::cout << " dart " << i << " " << v << " > " << threshold << "  " << dartProb << std::endl;
     }
+    std::cout << "check " << check << std::endl;
+    if (k == 0)
+    {
+        dropList[mPrng.get<u32>() % dropList.size()] = 1;
+        ++k;
+    }
+
 
     // now subtract off learningRate * prediction from our labels.
     // This will be come our new dataset.
     for (u64 i = 0; i < updatedDB.size(); ++i)
     {
         double sum = 0;
-        for (u64 j = 0; j <= treeIdx; ++j)
+        for (u64 j = 0; j < dropList.size(); ++j)
         {
             if (dropList[j] == 0)
             {
-                TreeNode* cur = &mTrees[j].root;
-
-                // traverse the tree until we get to a leaf. 
-                while (cur->mPredIdx[0] != -1)
-                {
-
-                    auto px = updatedDB[i].mPredsGroup[cur->mPredIdx[0]][cur->mPredIdx[1]];
-                    cur = px ? cur->mRight.get() : cur->mLeft.get();
-
-                }
-
-                sum += cur->mValue;
+                sum +=  mTrees[j].evaluate(updatedDB[i]) * mTrees[j].mMuteFactor;
             }
         }
 
-        auto Lprime =
-            db[i].mValue -
-            learningRate * sum;
-
-        //if (i < 10)
-        //{
-        //    std::cout << "db[" << treeIdx << "][" << i << "] : " << updatedDB[i].mValue << " -> " << Lprime << std::endl;
-        //}
-
-        updatedDB[i].mValue = Lprime;
+        updatedDB[i].mValue = db[i].mValue - sum;
     }
+
+    for (u64 i = 0; i < dropList.size(); ++i)
+    {
+        if (dropList[i])
+        {
+            mTrees[i].mMuteFactor *= k / (1.0 + k);
+        }
+    }
+
+    mTrees[dropList.size()].mMuteFactor = 1.0 / (1.0 * k);
 
 }
 
@@ -141,11 +136,6 @@ void BoostedMLTree::boostUpdate(std::vector<DbTuple> &updatedDB, double learning
         auto Lprime =
             updatedDB[i].mValue -
             learningRate * mTrees[treeIdx].evaluate(updatedDB[i]);
-
-        //if (i < 10)
-        //{
-        //    std::cout << "db[" << treeIdx << "][" << i << "] : " << updatedDB[i].mValue << " -> " << Lprime << std::endl;
-        //}
 
         updatedDB[i].mValue = Lprime;
     }
@@ -233,6 +223,13 @@ double BoostedMLTree::evaluate(const DbTuple & data)
 
         y = y / mNumTrees;
     }
+    else if (mType == SplitType::Dart)
+    {
+        for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
+        {
+            y += mTrees[treeIdx].evaluate(data) * mTrees[treeIdx].mMuteFactor;
+        }
+    }
     else
     {
         for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
@@ -245,6 +242,11 @@ double BoostedMLTree::evaluate(const DbTuple & data)
     return y;
 
 }
+//
+//std::vector<u8> BoostedMLTree::sampleDropList(u64 size, double dropProb)
+//{
+//
+//}
 
 u64 BoostedMLTree::leafCount()
 {

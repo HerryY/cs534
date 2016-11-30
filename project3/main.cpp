@@ -275,14 +275,44 @@ int main(int argc, char** argv)
     //loadIris(testData, "./iris-test.csv");
 
 
-    std::vector<DbTuple > fullData, trainingData, testData, valData;
+    std::vector<DbTuple > fullData;
     loadCTData2(fullData);
 
     PRNG prng(0);
     //std::shuffle(fullData.begin(), fullData.end(), prng);
-
-    u64 i = 0;
     u64 foldCount = 10;
+    u64 foldStart = 4, foldEnd = 5;
+
+
+
+    std::vector<std::vector<DbTuple>>  trainingData(foldCount), testData(foldCount);
+    //u64 i = 0;
+
+    for(u64 i = foldStart; i < foldEnd; ++i)
+    { 
+        auto testStart = fullData.begin() + (i * fullData.size() / foldCount);
+        while (testStart != fullData.begin() && testStart->mPlain[0] == (testStart - 1)->mPlain[0])
+            ++testStart;
+        auto testend = fullData.begin() + ((i + 1) * fullData.size() / foldCount);
+        while (testend != fullData.end() && testend->mPlain[0] == (testend - 1)->mPlain[0])
+            ++testend;
+
+
+        trainingData[i].insert(
+            trainingData[i].end(),
+            fullData.begin(),
+            testStart);
+
+        trainingData[i].insert(
+            trainingData[i].end(),
+            testend,
+            fullData.end());
+
+        testData[i].insert(
+            testData[i].begin(),
+            testStart,
+            testend);
+    }
 
 
     //valData.insert(
@@ -292,51 +322,29 @@ int main(int argc, char** argv)
 
     //fullData.resize(fullData.size() - valData.size());
 
-    auto testStart = fullData.begin() + (i * fullData.size() / foldCount);
-    while (testStart != fullData.begin() && testStart->mPlain[0] == (testStart - 1)->mPlain[0])
-        ++testStart;
-    auto testend = fullData.begin() + ((i+1) * fullData.size() / foldCount);
-    while (testend != fullData.end() && testend->mPlain[0] == (testend - 1)->mPlain[0])
-        ++testend;
+  
 
-
-    trainingData.insert(
-        trainingData.end(),
-        fullData.begin(),
-        testStart);
-
-    trainingData.insert(
-        trainingData.end(),
-        testend,
-        fullData.end());
-
-    testData.clear();
-    testData.insert(
-        testData.begin(),
-        testStart,
-        testend);
-
-    std::cout << "test  " << testData.front().mIdx << "  " << testData.back().mIdx << std::endl;
-    std::cout << "train " << trainingData.front().mIdx << "  " << trainingData.back().mIdx << std::endl;
+    //std::cout << "test  " << testData.front().mIdx << "  " << testData.back().mIdx << std::endl;
+    //std::cout << "train " << trainingData.front().mIdx << "  " << trainingData.back().mIdx << std::endl;
 
 
 
     std::vector<double>
-        learningRates{0.1,0.05},
-        epsilons{ 0.5, 0.1, 0.01, 0.001 };
+        learningRates{/*0.1,*/0.05},
+        epsilons{/* 1, 0.5, 0.1,*/ 0.01 };
     std::vector<i64>
         numTreess{/* 100,*/ 150 },
         minSplitSizes{ 10/*, 10, 100*//*, 1000*/ },
-        maxDepths{ 100, 1000,-1 },
-        maxLeafCounts{ -1 };
+        maxDepths{ /*100, */-1 },
+        maxLeafCounts{ 100000 };
  
 
     std::vector<SplitType> types
     {
-        SplitType::L2,
-        SplitType::Dart,
-        SplitType::L2Laplace,
-        SplitType::Random
+        //SplitType::L2,
+        SplitType::Dart//,
+        //SplitType::L2Laplace,
+        //SplitType::Random
     };
 
 
@@ -352,66 +360,79 @@ int main(int argc, char** argv)
     std::mutex masterMtx;
 
     u64 jj = 0;
-    for (auto learningRate : learningRates)
+    for (u64 i = foldStart; i < foldEnd; ++i)
     {
-        for (auto numTrees : numTreess)
+        for (auto learningRate : learningRates)
         {
-            for (auto minSplitSize : minSplitSizes)
+            for (auto numTrees : numTreess)
             {
-                for (auto maxDepth : maxDepths)
+                for (auto minSplitSize : minSplitSizes)
                 {
-                    for (auto maxLeafCount : maxLeafCounts)
+                    for (auto maxDepth : maxDepths)
                     {
-                        for (auto epsilon : epsilons)
+                        for (auto maxLeafCount : maxLeafCounts)
                         {
-                            for (auto type : types)
+                            for (auto epsilon : epsilons)
                             {
-                                // epsilon doens't effect L2 splitType so skip if we
-                                // we are not running it for the first time.
-                                if (type != SplitType::L2Laplace &&
-                                    type != SplitType::Dart && 
-                                    epsilon != epsilons[0]) continue;
-
-                                auto j = jj++;
-                                //futures.emplace_back(std::async(
-                                funcs.emplace_back(
-                                        [&,j, learningRate, numTrees, minSplitSize, maxDepth, maxLeafCount, epsilon, type]()
+                                for (auto type : types)
                                 {
+                                    // epsilon doens't effect L2 splitType so skip if we
+                                    // we are not running it for the first time.
+                                    if (type != SplitType::L2Laplace &&
+                                        type != SplitType::Dart &&
+                                        epsilon != epsilons[0]) continue;
 
-                                    auto dropRate = epsilon;
-                                    BoostedMLTree tree;
-                                    std::fstream out;
-                                    std::string name =
-                                         "/eval_lr" + std::to_string(learningRate)
-                                        + "_nT" + std::to_string(numTrees)
-                                        + "_mS" + std::to_string(minSplitSize)
-                                        + "_mD" + std::to_string(maxDepth)
-                                        + "_mL" + std::to_string(maxLeafCount)
-                                        + (type == SplitType::L2Laplace ? "_e" + std::to_string(epsilon) : "")
-                                        + (type == SplitType::Dart? "_dr" + std::to_string(dropRate) : "")
-                                        + "_" + toString(type)
-                                        + ".txt";
+                                    // random trees dont have learning rates.
+                                    if (type == SplitType::Random &&
+                                        learningRate != learningRates[0]) continue;
 
-                                    out.open(SOLUTION_DIR + name, std::ios::trunc | std::ios::out);
-
-                                    if (out.is_open() == false)
+                                    auto j = jj++;
+                                    //futures.emplace_back(std::async(
+                                    funcs.emplace_back(
+                                        [&, j,i, learningRate, numTrees, minSplitSize, maxDepth, maxLeafCount, epsilon, type]()
                                     {
-                                        std::cout << "failed to open file: " << SOLUTION_DIR + name << "  " /*<< std::strerror_s(errno)*/ << std::endl;
-                                        throw std::runtime_error(LOCATION);
-                                    }
+                                        u64 nt = numTrees;
+                                        auto dropRate = epsilon / 10;
 
-                                    tree.mOut = &out;
+                                        if (type == SplitType::Random)
+                                        {
+                                            nt *= 10;
+                                        }
 
-                                    tree.mPrng.SetSeed(prng.get<u64>());
+                                        BoostedMLTree tree;
+                                        std::fstream out;
+                                        std::string name =
+                                            "/eval_lr" + std::to_string(learningRate)
+                                            + "_nT" + std::to_string(nt)
+                                            + "_mS" + std::to_string(minSplitSize)
+                                            + "_mD" + std::to_string(maxDepth)
+                                            + "_mL" + std::to_string(maxLeafCount)
+                                            + (type == SplitType::L2Laplace ? "_e" + std::to_string(epsilon) : "")
+                                            + (type == SplitType::Dart ? "_dr" + std::to_string(dropRate) : "")
+                                            + "_" + toString(type)
+                                            + "_" + std::to_string(i)
+                                            + ".txt";
 
-                                    tree.learn(trainingData, numTrees, learningRate, minSplitSize, maxDepth, maxLeafCount, type, epsilon,dropRate, &testData);
+                                        out.open(SOLUTION_DIR + name, std::ios::trunc | std::ios::out);
 
-                                    masterMtx.lock();
-                                    master << name<<" " << tree.mBest << std::flush;
-                                    masterMtx.unlock();
+                                        if (out.is_open() == false)
+                                        {
+                                            std::cout << "failed to open file: " << SOLUTION_DIR + name << "  " /*<< std::strerror_s(errno)*/ << std::endl;
+                                            throw std::runtime_error(LOCATION);
+                                        }
 
-                                //}));
-                                });
+                                        //tree.mOut = &out;
+
+                                        tree.mPrng.SetSeed(prng.get<u64>());
+
+                                        tree.learn(trainingData[i], nt, learningRate, minSplitSize, maxDepth, maxLeafCount, type, epsilon, dropRate, &testData[i]);
+
+                                        masterMtx.lock();
+                                        master << name << "" << tree.mBest << std::flush;
+                                        masterMtx.unlock();
+
+                                    });
+                                }
                             }
                         }
                     }
@@ -421,7 +442,7 @@ int main(int argc, char** argv)
     }
 
     std::mutex mtx;
-    u64 numThrds = std::min(u32(32), std::thread::hardware_concurrency());
+    u64 numThrds = std::min(u32(64), std::thread::hardware_concurrency());
 
     std::vector<std::thread> thrds(numThrds);
     std::cout << numThrds << " threads working on " << funcs.size() << " tasks" << std::endl;
@@ -443,7 +464,7 @@ int main(int argc, char** argv)
                     mtx.unlock();
 
                     func();
-                    std::cout << "\r" << j++ << "done            ";
+                    std::cout << "\r" << j++ << "done            " << std::flush;
 
                 }
                 else
@@ -457,48 +478,12 @@ int main(int argc, char** argv)
     }
 
     //std::cout << std::max(futures.size(), thrds.size()) << " threads at work" << std::endl;
-    i = 1;
-
     for (auto& thrd : thrds)
     {
         thrd.join();
     }
     std::cout << "\r"<< funcs.size() << " done" << std::endl;
 
-    //for (u64 minSplitSize = 1; minSplitSize < 0; ++minSplitSize)
-    //{
-
-
-    //    //std::cout << "\n\nrandom forest with minSplitSize = " << minSplitSize << " and " << numTrees << " trees." << std::endl;
-
-
-
-    //    for (u64 i = 5; i < 101; i += 5)
-    //    {
-
-    //        double testAcc = 0;
-    //        double trainAcc = 0;
-    //        for (u64 j = 0; j < trials; ++j)
-    //        {
-
-
-    //            RandomForest forest;
-
-    //            forest.learn(trainingData, i, minSplitSize);//, &testData
-
-    //            testAcc += forest.test(testData, 0);
-    //            trainAcc += forest.test(trainingData, 0);
-
-    //        }
-    //        testAcc = testAcc / trials;
-    //        trainAcc = trainAcc / trials;
-
-    //        std::cout << "trees " << i << "  test   " << testAcc << "%  train   " << trainAcc << "%" << std::endl;
-
-
-    //    }
-
-    //}
     return 0;
 }
 

@@ -7,6 +7,7 @@
 #include <list>
 #include "Common/PRNG.h"
 #include <array>
+#include <queue>
 
 //typedef std::array<bool, 3> YType;
 typedef double YType;
@@ -36,9 +37,31 @@ public:
     MLTree();
     ~MLTree();
 
+
+    double mMuteFactor;
     PRNG mPrng;
     std::mutex mNextListMtx, mLeafListMtx;
-    std::list<TreeNode*> nextList, mLeafNodes;
+    std::list<TreeNode*> mLeafNodes;
+
+    struct QueueItem
+    {
+        QueueItem(TreeNode* node, double loss)
+            : mLoss(loss)
+            , mNode(node)
+        {}
+
+        double mLoss;
+        TreeNode* mNode;
+
+        bool operator<(const QueueItem& cmp) const
+        {
+            return mLoss > cmp.mLoss;
+        }
+
+    };
+        
+
+    std::priority_queue< QueueItem> nextList;
     u64 mNodeCount;
 
     TreeNode root;

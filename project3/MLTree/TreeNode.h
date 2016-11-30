@@ -28,7 +28,12 @@ public:
 	u64  mIdx, mDepth;
     std::array<u64, 2> mPredIdx;
 
-	double mValue;
+    bool hasChildren()
+    {
+        return mRight.get();
+    }
+
+	double mValue, mLoss;
 
 	std::vector<DbTuple*> mRows;
 

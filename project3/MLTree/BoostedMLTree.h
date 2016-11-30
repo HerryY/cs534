@@ -26,10 +26,11 @@ public:
         double dartProb,
         std::vector<DbTuple>* evalData = nullptr);
 
-    void dartUpdate(const i64 &treeIdx, double dartProb,
+    void dartUpdate(
         const std::vector<DbTuple> &db, 
-        std::vector<DbTuple> &updatedDB, 
-        double learningRate);
+        std::vector<DbTuple> &updatedDB,
+        u64 size,
+        double dropProb);
 
     void boostUpdate(std::vector<DbTuple> &updatedDB, double learningRate, const i64 &treeIdx);
 
@@ -47,6 +48,8 @@ public:
 	double mLearningRate;
 
     std::ostream* mOut;
+
+    std::vector<u8> sampleDropList(u64 size, double dropProb);
 
     u64 leafCount();
 	u64 getTotalDepth();
