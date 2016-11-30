@@ -34,22 +34,29 @@ Hung Viet Le}
 
 \begin{abstract}
 
-TODO
+Boosting is a successful machine learning algorithm for a number of regression and classification tasks. Combined with tree base learner, boosted ensemble algorithms are shown to deliver highly accurate and strong predictive models. In this work, we first study a well-known approach called Multiple Additive Regression Trees (MART). By looking at its weakness, we proposed a different approach named Laplace Additive Regression Trees (LART) to mitigate this by injecting random Laplace noises. In the experiment, we compare the performance of LART and MART on the dataset that has been used in previous papers. Our results is promising as the proposed method yields significant gains in accuracy in this particular task.
 
 \end{abstract}
 
 \section{Introduction}
 
-introduce the problem. See the dart paper for a good intro. We want to frame it as the MART algorithm suffers from later trees not contributing much and that the consecutive trees have too much in common. i.e. the same predicates are often chosen between consecutive tree when the learning rate/shrinkage is small , e.g. 0.05. 
- 
-  
+% introduce the problem. See the dart paper for a good intro. We want to frame it as the MART algorithm suffers from later trees not contributing much and that the consecutive trees have too much in common. i.e. the same predicates are often chosen between consecutive tree when the learning rate/shrinkage is small , e.g. 0.05. 
+
+Ensemble modeling is a powerful way to improve the performance of a single learning model.  It can be able to out-perform any single classifier within the ensemble \cite{Dietterich2000}. Many methods for constructing ensembles have been developed. One popular approach is Bagging and Random Forest \cite{Breiman2001}, in which different subsets of the training examples are used to learn independent predictors. Another practical technique is boosting. Boosted algorithms focus on improving the current model by iteratively adjusting the learning algorithm between iterations. In general, this method often results in better reducing the bias error and achieving strong predictive models. \\
+
+In 2001, Friedmn introduced an ensemble of boosted regression trees - MART \cite{mart}, which combines boosting with tree base learner. At each iteration a tree is added to fit the gradient using least square. The resulting model forms an ensemble of weak predictive models that gives highly accurate predictions. Later on, Caruana and Niculescu-Mizail \cite{Caruana06anempirical} demonstrated the application of MART to build highly successful models for many learning tasks. Despite its success, this algorithm still suffers from the problem of over-fitting where the learned model does not generalize well to unseen data. This issue is addressed in \cite{VinayakG15} as \textit{over-specialization}: trees added at later iterations tend to have too much in common, and add negligible contribution towards the prediction of all the remaining instances. In real-world settings, the MART algorithm often starts with a single tree that learns the bias of the problem while the additive trees in the ensemble learn the deviation from this bias. In this sense, the ensemble is sensitive to the decision made by the first tree.\\
+
+One commonly used tool to approach the problem of over-specialization in MART is \textit{shrinkage} \cite{mart}. Empirically this regularization technique reduces the impact of each tree by a constant value - \textit{shrinkage factor}, which helps dramatically improve the model's generalization ability. However, while the over-fitting problem can be mitigated by shrinkage, the fundamental issue of over-specialization still remains, i.e. as the size of the ensemble increases, the contribution of the later trees is negligible \cite{VinayakG15}. Motivated by this, we hypothesize that randomizing the process of selecting predicates can provide another effective regularization for MART and propose the LART algorithm.
+
 
 \subsection{Mart - Random Forest Hybrid}
 
+% maybe one of you can write this. Talk about how our randomization technique allows a smooth transition between a random forest technique and the original MART. This can be tuned and talk about how the use of the laplace random variable effects this randomization. I.e. if one predicate/split is significantly better, then it will still be pick with good probability (assuming a moderate amount of noise.)
 
+In this work, we explore an improvement in MART to address the issue of over-specialization. Specifically, we propose a method called Laplace Additive Regression Trees (LART), which injects randomness into the learning algorithm.
+By adding Laplace noises to the calculation of the loss function, a predicate can be sampled in a way such that a greater reduce in the loss function results in it being exponentially more likely to be selected. Instead of selecting the predicate that minimizes the loss function, we select the predicate that minimizes the sum of the loss function and the Laplace noise. Predicates chosen in this way are more uncorrelated and hence the variance in the learners increases.\\
 
-maybe one of you can write this. Talk about how our randomization technique allows a smooth transition between a random forest technique and the original MART. This can be tuned and talk about how the use of the laplace random variable effects this randomization. I.e. if one predicate/split is significantly better, then it will still be pick with good probability (assuming a moderate amount of noise.)
-
+Our motivation for this approach is a hybrid view between MART and Random Forest. While MART takes the advantage of boosting algorithms in achieving low bias and low variance, it can be sensitive to noise and outliers as mentioned above. On the other hand, Random Forest benefits from the diversity among the learned classifiers and hence it is more robust to noise and outliers. However, it has the major disadvantage of regression trees, that is, their inaccuracy. Our proposed method tries to capture the advantage of these two approaches with appropriate additive Laplace noise. When the Laplace distribution is scaled by too much, the noise will drown out the contribution that the loss function may have. Predicates at each iteration are likely to be chosen randomly. This leads to special case wherein LART is similar to a Random Forest algorithm. Conversely, if the Laplace noise is too small, the loss function will dominate and effectively result in the MART algorithm. Tuning the scale of Laplace noise thus is a major point of investigation for our work.
 
 
 
@@ -85,17 +92,23 @@ The input to the algorithm is a labeled dataset $D=\{(x,y)\}$ where $x\in \mathc
  
 The algorithm begins by initializing the current model $M:\mathcal{X}\mapsto \mathcal{Y}$ to some default map. Let $M(x)$ denote the prediction of the model at the feature vector $x$ and $\mathcal{L}'_{(x,y)}(M(x))$ denote the derivative of the loss function at $M(x)$. At each iteration, Mart then creates new dataset datasets $D'=\{(x,-\mathcal{L}'(M(x)))\}$  and learns a new tree model $T$ for $D'$. This tree $T$ is trained to predict the negation of the the derivate of the loss function. The current model is then updated as $M(x):= M(x) + T(x)$, thereby reducing the loss.
 
-
-An individual tree $T$ is trained in a relatively straightforward way. It is assumed that there exists a set of $m$ predicates each of which $P:\mathcal{X} \mapsto \{0,1\}$ map a feature vector to a single bit.  Initially, all records in the training set $D'$ are mapped to the root of the tree. The tree is then recursively constructed by selecting a lead node $L$. For each predicate $P_i$ the recodes at the current node $(x,y)\in L $ are mapped to $L$'s newly created ``candidate" children $L_{i,0},L_{i,1}$, where $(x,y)$ is mapped to $L_{i,P_i(x)}$. Each of these candidate nodes $L_{i,b}$ then computes the label $\hat{y}_{i,b}$  which minimizes the loss function when applied $(x,y)\in L_{i,b}$.
-
 In the case of the $L2$ loss function describe above, its derivative is $\mathcal{L}'_{(x,y)}(\hat{y}) = 2(y - \hat{y})$. This will be the loss function of choice in the evaluation section as it is suitable to the regression task in question. However, other loss functions can be defines for different tasks such as classification. In this case, the  the logistic loss function can be used $\mathcal{L}_{(x,y)} (\hat{y}) =( 1 + \exp(\lambda y \hat{y}))^{-1}$ and consecutive models will be trained to fit its derivative.
 
+{\color{red} add a section about shrinkage}
 
 
 \subsection{Lart}
 We now turn our attention to the Lart technique discussed in this paper. One problem with the Mart algorithm is that of over specialization as discussed above\cite{dart}. In this case the later trees contribute very little to the  model as trees start to fail to fit the derivative of the loss function. The related work Dart \cite{dart} suggest that randomizing how these trees are constructed can provide some benefit in that later trees continue to improve the model. While they put forth a technique based on dropout, our technique is based on methods from differential privacy.
 
-In more detail, we randomize the construction of 
+
+First let turn our attention to how an individual tree $T$ is trained. It is assumed that there exists a set of $m$ predicates each of which $P:\mathcal{X} \mapsto \{0,1\}$ map a feature vector to a single bit.  Initially, all records in the training set $D'$ are mapped to the root of the tree. The tree is then recursively constructed by selecting a lead node $L$. For each predicate $P_i$ the recodes $(x,y)\in L$ are mapped to $L$'s newly created ``candidate" children $L_{i,0},L_{i,1}$, where $(x,y)$ is mapped to $L_{i,P_i(x)}$. For each of these candidate nodes $L_{i,b}$, the label $\hat{y}_{i,b}$ that minimizes the loss function $\mathcal{L}$ when applied $(x,y)\in L_{i,b}$ is computed. The pair of leaf nodes $L_{i,0}, L_{i,1}$ which has the greatest reduction in the loss function over $L$ is then selected and $L_{i,0}, L_{i,1}$ are added to the tree as leaf nodes. This process of selecting and splitting leaf nodes continues until some stop condition it reached, e.g. the best $k$ leaves have been split.
+
+The Lart algorithm randomizes this process of selecting predicates in the following way. Instead of strictly selecting the leaf node pair $L_{i,0}, L_{i,1}$ with the greatest reduction in the loss function, we noisily select the best predicate. In particularly, for each predicate we sample a random variable $\eta\gets \mathcal{D}$ and computed the its effective reduction in the loss function as $\ell + \eta$, where $\ell$ was the original reduction. The predicate that has the greatest ``effective" reduction in the loss function is then chosen.
+
+The choice of the distribution $\mathcal{D}$ can therefore have a significant impact on the performance of the model. In the case that $\ell \ll \eta$ with high probability,  the Larp algorithm is identical to a random forest with an appropriate choice of when to stop the algorithm. However, in the case that $\ell \gg \eta$, the Larp algorithm is identical to the original Mart algorithm. As such, this modification to the training process allow us to explore the the space of algorithms between Mart and random forest.
+
+In our experimental evaluation where we use the $L2$ loss function we chose to instantiate this distribution $\mathcal{D}$ as the Laplace distribution centered at zero and scaled by $\frac{\mu}{\epsilon}$, where $\mu$ is the mean value of the labels at the leaf and $\epsilon$ is a parameter that allows the amount of noise to be tuned. This choice was made to on average the amount of noise added to an reduction is roughly proportional to the effect of adding/removing a single record from the node in question. Moreover, by choosing to use the Laplace distribution with this scaling, we are approximating the requirements for differential privacy which we had previous interpreted as a potential mechanism for reducing overfitting/over-specialization. However, other distributions such as a Gaussian would likely have a similar effect. 
+
 
 \section{Evaluation}
 
@@ -121,6 +134,15 @@ For the dataset, we choose to use the CT slice dataset from \cite{graf20112d} wh
 Table \ref{tab:compare} show the performance of the Larp technique as compared Mart, Dart, and random forest.
 
 \section{Conclusion}
-\bibliography{document}{}
+In this project, we first review the approach of using Multiple Additive Regression Trees (MART) to regression and classification tasks. The weakness of MART is trees added at later iterations have significantly diminishing contributions. By injecting some randomness to generating ensembles classifiers, we propose a different approach, called LART, to provide efficient regularization for MART. Our experiment shows that LART out-performs MART when the number of trees increases considerably. This strengthen our hypothesis that LART is more robust to over-specialization.\\
+
+This study also suggest some point of investigation. One direction is tuning the scale parameter along with other traditional parameters in MART and examining their interaction. Additionally, we might evaluate the performance of LART on more complicated datasets and other machine learning tasks, as in data mining.
+
+
+
+\nocite{*}
 \bibliographystyle{plain}
+\bibliography{ref}
+
+
 \end{document}
