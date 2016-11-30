@@ -15,7 +15,7 @@ public:
 	std::unique_ptr<MLTree[]> mTrees;
 
 	void learn(
-		std::vector<DbTuple>& myDB,
+		const std::vector<DbTuple>& myDB,
 		u64 numTrees,
 		double learningRate,
         u64 minSplit,
@@ -23,8 +23,20 @@ public:
         u64 maxLeafCount,
         SplitType type,
         double epsilon,
+        double dartProb,
         std::vector<DbTuple>* evalData = nullptr);
 
+    void dartUpdate(const i64 &treeIdx, double dartProb,
+        const std::vector<DbTuple> &db, 
+        std::vector<DbTuple> &updatedDB, 
+        double learningRate);
+
+    void boostUpdate(std::vector<DbTuple> &updatedDB, double learningRate, const i64 &treeIdx);
+
+    std::string mBest;
+    double bestL2;
+
+    SplitType mType;
     PRNG mPrng;
 	double test(
 		std::vector<DbTuple>& testData, 
@@ -35,6 +47,8 @@ public:
 	double mLearningRate;
 
     std::ostream* mOut;
+
+    u64 leafCount();
 	u64 getTotalDepth();
 	u64 mNumTrees;
 };

@@ -8,6 +8,7 @@
 
 MLTree::MLTree()
     :mDepth(0)
+    , mLeafCount(0)
 {
     // seed the random number generalor with the address of this class
     // Should be pretty random.
@@ -108,6 +109,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
                 randomSplit(cur, minSplitSize);
                 break;
             case SplitType::L2:
+            case SplitType::Dart:
                 L2Split(cur, minSplitSize);
                 break;
             case SplitType::L2Laplace:
@@ -175,6 +177,8 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
     }
 
     mLeafNodes.insert(mLeafNodes.begin(), nextList.begin(), nextList.end());
+
+    mLeafCount = mLeafNodes.size();
 
     // for each leaf node, compute its average label and use that as a prediction
     // the majority label could work too if we are not doing ABA boosting.
@@ -606,6 +610,11 @@ double MLTree::evaluate(const DbTuple & row)
 u64 MLTree::getDepth()
 {
     return mDepth;
+}
+
+u64 MLTree::leafCount()
+{
+    return mLeafCount;
 }
 
 //void MLTree::deleteNode(TreeNode *& node)

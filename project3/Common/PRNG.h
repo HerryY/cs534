@@ -15,7 +15,7 @@
     public:
 
         u64 mSeed;
-        std::vector<u64> mBuffer, mIndexArray;
+        std::vector<u32> mBuffer, mIndexArray;
         u64 mBytesIdx, mBlockIdx, mBufferByteCapacity;
         void refillBuffer();
         std::mt19937 rng;

@@ -9,7 +9,7 @@
     PRNG::PRNG() : mBytesIdx(0), mBlockIdx(0),
         mBuffer(DEFAULT_BUFF_SIZE),
         mIndexArray(DEFAULT_BUFF_SIZE, 0),
-        mBufferByteCapacity(sizeof(u64) * DEFAULT_BUFF_SIZE)
+        mBufferByteCapacity(sizeof(u32) * DEFAULT_BUFF_SIZE)
     {
     }
 
@@ -20,7 +20,7 @@
         mBlockIdx(0),
         mBuffer(DEFAULT_BUFF_SIZE),
         mIndexArray(DEFAULT_BUFF_SIZE, 0),
-        mBufferByteCapacity(sizeof(u64) * DEFAULT_BUFF_SIZE)
+        mBufferByteCapacity(sizeof(u32) * DEFAULT_BUFF_SIZE)
     {
         mSeed = seed;
         rng.seed(seed);

@@ -82,20 +82,12 @@ We begin by describing the Mart algorithm on which we will build the Lart algori
 
 The input to the algorithm is a labeled dataset $D=\{(x,y)\}$ where $x\in \mathcal{X}$ is a vector in the feature space $\mathcal{X}$ and $y\in \mathcal{Y}$ is the labels in prediction space. In addition to $D$, the algorithm takes as input a loss function $\mathcal{L}_{(x,y)} :  \mathcal{Y} \mapsto \mathds{R} $ which the models prediction to a real value denoting the error of this prediction. In our case, we are performing regression and chose to use the $L2$ loss function and therefore we have $\mathcal{L}_{(x,y)}(\hat{y} ) = (y- \hat{y})^2$.
  
- 
-The algorithm begins by initializing the current model $M:\mathcal{X}\mapsto \mathcal{Y}$ to some default map. Let $M(x)$ denote the prediction of the model at the feature vector $x$ and $\mathcal{L}'_{(x,y)}(M(x))$ denote the derivative of the loss function at $M(x)$. At each iteration, Mart then creates new dataset datasets $D'=\{(x,-\mathcal{L}'(M(x)))\}$  and learns a new tree model $T$ for $D'$. This tree $T$ is trained to predict the negation of the the derivate of the loss function. The current model is then updated as $M(x):= M(x) + T(x)$, thereby reducing the loss.
-
-
-An individual tree $T$ is trained in a relatively straightforward way. It is assumed that there exists a set of $m$ predicates each of which $P:\mathcal{X} \mapsto \{0,1\}$ map a feature vector to a single bit.  Initially, all records in the training set $D'$ are mapped to the root of the tree. The tree is then recursively constructed by selecting a lead node $L$. For each predicate $P_i$ the recodes at the current node $(x,y)\in L $ are mapped to $L$'s newly created ``candidate" children $L_{i,0},L_{i,1}$, where $(x,y)$ is mapped to $L_{i,P_i(x)}$. Each of these candidate nodes $L_{i,b}$ then computes the label $\hat{y}_{i,b}$  which minimizes the loss function when applied $(x,y)\in L_{i,b}$.
+The algorithm begins by initializing the current model $M:\mathcal{X}\mapsto \mathcal{Y}$ to some default map. Let $M(x)$ denote the prediction of the model at the feature vector $x$ and $\mathcal{L}'_{(x,y)}(M(x))$ denote the derivative of the loss function at $M(x)$. At each iteration, Mart then creates new dataset datasets $D'=\{(x,-\mathcal{L}'(M(x)))\}$  and learns a new tree model $M'$ for $D'$. This tree $M'$ is trained to predict the negation of the the derivate of the loss function. The current model is then updated as $M(x):= M(x) + M'(x)$, thereby reducing the loss.
 
 In the case of the $L2$ loss function describe above, its derivative is $\mathcal{L}'_{(x,y)}(\hat{y}) = 2(y - \hat{y})$. This will be the loss function of choice in the evaluation section as it is suitable to the regression task in question. However, other loss functions can be defines for different tasks such as classification. In this case, the  the logistic loss function can be used $\mathcal{L}_{(x,y)} (\hat{y}) =( 1 + \exp(\lambda y \hat{y}))^{-1}$ and consecutive models will be trained to fit its derivative.
 
-
-
 \subsection{Lart}
-We now turn our attention to the Lart technique discussed in this paper. One problem with the Mart algorithm is that of over specialization as discussed above\cite{dart}. In this case the later trees contribute very little to the  model as trees start to fail to fit the derivative of the loss function. The related work Dart \cite{dart} suggest that randomizing how these trees are constructed can provide some benefit in that later trees continue to improve the model. While they put forth a technique based on dropout, our technique is based on methods from differential privacy.
-
-In more detail, we randomize the construction of 
+We now turn our attention to the Lart technique discussed in this paper. One problem with the Mart algorithm is that of over specialization as discussed above\cite{dart}. In this case the later trees contribute very little to the  model as trees start to fail to fit the derivative of the loss function. 
 
 \section{Evaluation}
 

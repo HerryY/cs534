@@ -11,14 +11,25 @@
 //typedef std::array<bool, 3> YType;
 typedef double YType;
 
+
 enum class SplitType
 {
     Entropy,
     Random,
     L2,
-    L2Laplace
+    L2Laplace,
+    Dart
 };
 
+inline std::string toString(SplitType t)
+{
+    if (t == SplitType::Entropy) return "Entropy";
+    if (t == SplitType::Random) return "Random";
+    if (t == SplitType::L2) return "L2";
+    if (t == SplitType::L2Laplace) return "L2Laplace";
+    if (t == SplitType::Dart) return "Dart";
+    throw std::runtime_error(LOCATION);
+}
 class MLTree
 {
 public:
@@ -50,7 +61,8 @@ public:
     std::vector<u8> mFeatureSelection;
 
     u64 getDepth();
-
+    u64 leafCount();
+    u64 mLeafCount;
 private: 
     //void deleteNode(TreeNode*& node);
 };
