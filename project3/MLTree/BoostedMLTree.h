@@ -12,7 +12,7 @@ public:
 	~BoostedMLTree();
 
 
-	std::unique_ptr<MLTree[]> mTrees;
+	std::vector<MLTree> mTrees;
 
 	void learn(
 		const std::vector<DbTuple>& myDB,
@@ -49,7 +49,6 @@ public:
 
     std::ostream* mOut;
 
-    std::vector<u8> sampleDropList(u64 size, double dropProb);
 
     u64 leafCount();
 	u64 getTotalDepth();

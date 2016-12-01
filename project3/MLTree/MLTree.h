@@ -37,10 +37,11 @@ public:
     MLTree();
     ~MLTree();
 
+    MLTree(MLTree&&);
+
 
     double mMuteFactor;
     PRNG mPrng;
-    std::mutex mNextListMtx, mLeafListMtx;
     std::list<TreeNode*> mLeafNodes;
 
     struct QueueItem

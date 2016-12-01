@@ -297,6 +297,13 @@ int main(int argc, char** argv)
         while (testend != fullData.end() && testend->mPlain[0] == (testend - 1)->mPlain[0])
             ++testend;
 
+        if (testStart == testend)
+        {
+            testStart = fullData.begin() + (i * fullData.size() / foldCount);
+            testend = fullData.begin() + ((i + 1) * fullData.size() / foldCount);
+            std::cout << "WARNING: train and test sets overlap in patent id" << std::endl;
+        }
+
 
         trainingData[i].insert(
             trainingData[i].end(),
@@ -330,20 +337,20 @@ int main(int argc, char** argv)
 
 
     std::vector<double>
-        learningRates{/*0.1,*/0.05},
-        epsilons{/* 1, 0.5, 0.1,*/ 0.01 };
+        learningRates{0.15, 0.1,0.075, 0.05, 0.025},
+        epsilons{ 1, 0.5, 0.1, 0.05, 0.01, 0.005 };
     std::vector<i64>
-        numTreess{/* 100,*/ 150 },
+        numTreess{/* 100,*/ 200 },
         minSplitSizes{ 10/*, 10, 100*//*, 1000*/ },
         maxDepths{ /*100, */-1 },
-        maxLeafCounts{ 100000 };
+        maxLeafCounts{ 1000 };
  
 
     std::vector<SplitType> types
     {
-        //SplitType::L2,
-        SplitType::Dart//,
-        //SplitType::L2Laplace,
+        SplitType::L2,
+        SplitType::Dart,
+        SplitType::L2Laplace//,
         //SplitType::Random
     };
 
@@ -382,9 +389,10 @@ int main(int argc, char** argv)
                                         type != SplitType::Dart &&
                                         epsilon != epsilons[0]) continue;
 
-                                    // random trees dont have learning rates.
-                                    if (type == SplitType::Random &&
-                                        learningRate != learningRates[0]) continue;
+                                    // only L2 style trees use a learning rate...
+                                    if (type != SplitType::L2Laplace &&
+                                        type != SplitType::L2 &&
+                                        learningRate != learningRates[0]) continue; 
 
                                     auto j = jj++;
                                     //futures.emplace_back(std::async(
@@ -421,7 +429,7 @@ int main(int argc, char** argv)
                                             throw std::runtime_error(LOCATION);
                                         }
 
-                                        //tree.mOut = &out;
+                                        tree.mOut = &out;
 
                                         tree.mPrng.SetSeed(prng.get<u64>());
 

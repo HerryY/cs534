@@ -9,7 +9,7 @@
 MLTree::MLTree()
     :mDepth(0)
     , mLeafCount(0)
-    , mMuteFactor(0)
+    , mMuteFactor(1)
 {
     // seed the random number generalor with the address of this class
     // Should be pretty random.
@@ -24,6 +24,12 @@ MLTree::~MLTree()
     //deleteNode(root.mLeft);
     //deleteNode(root.mRight);
 
+}
+
+
+MLTree::MLTree(MLTree &&c)
+{
+    throw std::runtime_error(LOCATION);
 }
 
 // private function for report

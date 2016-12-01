@@ -28,9 +28,8 @@ void BoostedMLTree::learn(
     std::vector<DbTuple>* evalData)
 {
     mLearningRate = learningRate;
-    mTrees.reset(new MLTree[numTrees]);
+    mTrees.resize(numTrees);
     mNumTrees = 0;
-    mNumTrees = numTrees;
     double maxY(9999);
 
     std::vector<DbTuple> updatedDB(myDB);
@@ -43,6 +42,7 @@ void BoostedMLTree::learn(
 
         // learn a  simple decision tree
         mTrees[treeIdx].learn(updatedDB, minSplit, maxDepth, maxLeafCount, type, epsilon);
+        ++mNumTrees;
 
 
         if (evalData)
@@ -74,7 +74,6 @@ void BoostedMLTree::dartUpdate(
     u64 size, 
     double dropProb)
 {
-    double check = 0;
     std::vector<u8> dropList(size);
     u64 k = 0;
     for (u64 i = 0; i < dropList.size(); ++i)
@@ -87,11 +86,8 @@ void BoostedMLTree::dartUpdate(
 
         if (dropList[i]) ++k;
 
-
-        check += mTrees[i].mMuteFactor;
         //std::cout << " dart " << i << " " << v << " > " << threshold << "  " << dartProb << std::endl;
     }
-    std::cout << "check " << check << std::endl;
     if (k == 0)
     {
         dropList[mPrng.get<u32>() % dropList.size()] = 1;
@@ -123,7 +119,7 @@ void BoostedMLTree::dartUpdate(
         }
     }
 
-    mTrees[dropList.size()].mMuteFactor = 1.0 / (1.0 * k);
+    mTrees[dropList.size()].mMuteFactor = 1.0 / (1.0 + k);
 
 }
 
@@ -232,8 +228,10 @@ double BoostedMLTree::evaluate(const DbTuple & data)
     }
     else
     {
+
         for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
         {
+
             y += mTrees[treeIdx].evaluate(data) * mLearningRate;
         }
     }
