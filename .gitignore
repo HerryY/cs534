@@ -256,7 +256,7 @@ ModelManifest.xml
 *.dvi
 
 
-*.pptx
+#*.pptx
 *.xlsx
 *.sty
 *.gz
