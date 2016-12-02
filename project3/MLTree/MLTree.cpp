@@ -101,6 +101,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
         L2Split(&root, minSplitSize);
         break;
     case SplitType::L2Laplace:
+    case SplitType::DLart:
         L2LaplaceSplit(&root, minSplitSize, nodeEpsilon);
         break;
     default:
@@ -183,6 +184,7 @@ void MLTree::learn(std::vector<DbTuple>& db, u64 minSplitSize, u64 maxDepth,
                     case SplitType::Dart:
                         L2Split(node, minSplitSize);
                         break;
+                    case SplitType::DLart:
                     case SplitType::L2Laplace:
                         L2LaplaceSplit(node, minSplitSize, nodeEpsilon);
                         break;
@@ -447,9 +449,10 @@ void MLTree::L2LaplaceSplit(TreeNode * cur, const u64 & minSplitSize, double nod
 
         auto y = row->mValue;
 
-
         for (u64 k = 0; k < mFeatureSelection.size(); ++k)
         {
+            auto&  u = updates[k];
+            auto& p = row->mPredsGroup[k];
             // see if this feature has been selected for this random tree.
             if (mFeatureSelection[k])
             {
@@ -457,11 +460,12 @@ void MLTree::L2LaplaceSplit(TreeNode * cur, const u64 & minSplitSize, double nod
                 {
                     // px is the index of what node this record would be mapped to.
                     // its either 0 or 1 (left or right node)
-                    u8 px = row->mPredsGroup[k][l];
+                    u8 px = p[l];
+
 
                     // add this records data to the running total
-                    updates[k][l][px].mYSum += y;
-                    updates[k][l][px].mSize++;
+                    u[l][px].mYSum += y;
+                    u[l][px].mSize++;
                     average += std::abs(y);
                     ++count;
                 }

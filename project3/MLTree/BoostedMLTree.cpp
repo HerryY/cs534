@@ -6,7 +6,8 @@
 #include <numeric>
 BoostedMLTree::BoostedMLTree()
     :mOut(&std::cout),
-    bestL2(9999999999999)
+    bestL2(9999999999999),
+    completedTrees(nullptr)
 {
 }
 
@@ -44,18 +45,17 @@ void BoostedMLTree::learn(
         mTrees[treeIdx].learn(updatedDB, minSplit, maxDepth, maxLeafCount, type, epsilon);
         ++mNumTrees;
 
-
         if (evalData)
         {
             test(*evalData, std::string("@") + std::to_string(treeIdx));
         }
 
 
-        if (type != SplitType::Random && type != SplitType::Dart)
+        if (type == SplitType::L2 && type == SplitType::L2Laplace)
         {
             boostUpdate(updatedDB, learningRate, treeIdx);
         }
-        else if (type == SplitType::Dart && treeIdx != numTrees - 1)
+        else if (type == SplitType::Dart || type == SplitType::DLart && treeIdx != numTrees - 1)
         {
             dartUpdate(myDB, updatedDB,  treeIdx + 1, dartProb);
         }
@@ -65,6 +65,11 @@ void BoostedMLTree::learn(
         {
             leaf->mRows.clear();
         }
+        
+        
+        // used to track the progress of large parameter sweeps
+        if (completedTrees)++*completedTrees;
+
     }
 }
 
@@ -210,41 +215,40 @@ double BoostedMLTree::evaluate(const DbTuple & data)
 {
     double y = 0;
 
-    if (mType == SplitType::Random)
+    switch (mType)
     {
+    case SplitType::Random:
         for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
         {
             y += mTrees[treeIdx].evaluate(data);
         }
 
         y = y / mNumTrees;
-    }
-    else if (mType == SplitType::Dart)
-    {
-        for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
-        {
-            y += mTrees[treeIdx].evaluate(data) * mTrees[treeIdx].mMuteFactor;
-        }
-    }
-    else
-    {
+        break;
+    case SplitType::L2:
+    case SplitType::L2Laplace:
 
         for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
         {
 
             y += mTrees[treeIdx].evaluate(data) * mLearningRate;
         }
+        break;
+    case SplitType::Dart:
+    case SplitType::DLart:
+        for (i64 treeIdx = 0; treeIdx < mNumTrees; ++treeIdx)
+        {
+            y += mTrees[treeIdx].evaluate(data) * mTrees[treeIdx].mMuteFactor;
+        }
+        break;
+    default:
+        throw std::runtime_error(LOCATION);
+        break;
     }
 
-    //std::cout << std::endl;
     return y;
 
 }
-//
-//std::vector<u8> BoostedMLTree::sampleDropList(u64 size, double dropProb)
-//{
-//
-//}
 
 u64 BoostedMLTree::leafCount()
 {

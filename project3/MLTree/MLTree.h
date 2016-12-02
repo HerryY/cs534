@@ -19,7 +19,8 @@ enum class SplitType
     Random,
     L2,
     L2Laplace,
-    Dart
+    Dart,
+    DLart
 };
 
 inline std::string toString(SplitType t)
@@ -29,6 +30,7 @@ inline std::string toString(SplitType t)
     if (t == SplitType::L2) return "L2";
     if (t == SplitType::L2Laplace) return "L2Laplace";
     if (t == SplitType::Dart) return "Dart";
+    if (t == SplitType::DLart) return "DLart";
     throw std::runtime_error(LOCATION);
 }
 class MLTree

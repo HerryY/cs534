@@ -3,7 +3,7 @@
 #include <vector>
 #include <functional>
 #include "Common/PRNG.h"
-
+#include <atomic>
 
 class BoostedMLTree
 {
@@ -53,5 +53,8 @@ public:
     u64 leafCount();
 	u64 getTotalDepth();
 	u64 mNumTrees;
+
+
+    std::atomic<u64>* completedTrees;
 };
 

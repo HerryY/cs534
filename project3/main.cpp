@@ -281,15 +281,15 @@ int main(int argc, char** argv)
     PRNG prng(0);
     //std::shuffle(fullData.begin(), fullData.end(), prng);
     u64 foldCount = 10;
-    u64 foldStart = 4, foldEnd = 5;
+    u64 foldStart = 0, foldEnd = 10;
 
 
 
     std::vector<std::vector<DbTuple>>  trainingData(foldCount), testData(foldCount);
     //u64 i = 0;
 
-    for(u64 i = foldStart; i < foldEnd; ++i)
-    { 
+    for (u64 i = foldStart; i < foldEnd; ++i)
+    {
         auto testStart = fullData.begin() + (i * fullData.size() / foldCount);
         while (testStart != fullData.begin() && testStart->mPlain[0] == (testStart - 1)->mPlain[0])
             ++testStart;
@@ -329,7 +329,7 @@ int main(int argc, char** argv)
 
     //fullData.resize(fullData.size() - valData.size());
 
-  
+
 
     //std::cout << "test  " << testData.front().mIdx << "  " << testData.back().mIdx << std::endl;
     //std::cout << "train " << trainingData.front().mIdx << "  " << trainingData.back().mIdx << std::endl;
@@ -337,20 +337,22 @@ int main(int argc, char** argv)
 
 
     std::vector<double>
-        learningRates{0.15, 0.1,0.075, 0.05, 0.025},
-        epsilons{ 1, 0.5, 0.1, 0.05, 0.01, 0.005 };
+        learningRates{ 0.15/*, 0.1,0.075, 0.05, 0.025 */},
+        epsilons{ 1, 0.1,0.05, 0.01, 0.005, 0.001 ,0.0005,0.0001, 0.00005},
+        dropRates{ 0.1, 0.05, 0.01, 0.05, 0.0001};
     std::vector<i64>
-        numTreess{/* 100,*/ 200 },
+        numTreess{/* 100,*/ 300 },
         minSplitSizes{ 10/*, 10, 100*//*, 1000*/ },
         maxDepths{ /*100, */-1 },
         maxLeafCounts{ 1000 };
- 
+
 
     std::vector<SplitType> types
     {
-        SplitType::L2,
-        SplitType::Dart,
-        SplitType::L2Laplace//,
+        //SplitType::L2,
+        //SplitType::Dart,
+        SplitType::DLart//,
+        //SplitType::L2Laplace//,
         //SplitType::Random
     };
 
@@ -363,9 +365,10 @@ int main(int argc, char** argv)
         std::cout << "failed to open file: " << SOLUTION_DIR "master.txt" << "  " /*<< std::strerror_s(errno)*/ << std::endl;
         throw std::runtime_error(LOCATION);
     }
-
     std::mutex masterMtx;
 
+    std::atomic<u64>completedTrees(0);
+    u64 totalTrees = 0;
     u64 jj = 0;
     for (u64 i = foldStart; i < foldEnd; ++i)
     {
@@ -381,66 +384,92 @@ int main(int argc, char** argv)
                         {
                             for (auto epsilon : epsilons)
                             {
-                                for (auto type : types)
+                                for (auto dropRate : dropRates)
                                 {
-                                    // epsilon doens't effect L2 splitType so skip if we
-                                    // we are not running it for the first time.
-                                    if (type != SplitType::L2Laplace &&
-                                        type != SplitType::Dart &&
-                                        epsilon != epsilons[0]) continue;
-
-                                    // only L2 style trees use a learning rate...
-                                    if (type != SplitType::L2Laplace &&
-                                        type != SplitType::L2 &&
-                                        learningRate != learningRates[0]) continue; 
-
-                                    auto j = jj++;
-                                    //futures.emplace_back(std::async(
-                                    funcs.emplace_back(
-                                        [&, j,i, learningRate, numTrees, minSplitSize, maxDepth, maxLeafCount, epsilon, type]()
+                                    for (auto type : types)
                                     {
-                                        u64 nt = numTrees;
-                                        auto dropRate = epsilon / 10;
+                                        // only laplace based learners use epsilon
+                                        if (type != SplitType::L2Laplace &&
+                                            type != SplitType::DLart &&
+                                            epsilon != epsilons[0]) continue;
 
-                                        if (type == SplitType::Random)
+                                        // only L2 style trees use a learning rate...
+                                        if (type != SplitType::L2Laplace &&
+                                            type != SplitType::L2 &&
+                                            learningRate != learningRates[0]) continue;
+
+                                        // only dart style learners use drop rate
+                                        if (type != SplitType::Dart &&
+                                            type != SplitType::DLart &&
+                                            dropRate!= dropRates[0]) continue;
+
+                                        totalTrees += numTrees;
+
+                                        auto j = jj++;
+                                        //futures.emplace_back(std::async(
+                                        funcs.emplace_back(
+                                            [&, j, i,dropRate, learningRate, numTrees, minSplitSize, maxDepth, maxLeafCount, epsilon, type]()
                                         {
-                                            nt *= 10;
-                                        }
+                                            u64 nt = numTrees;
 
-                                        BoostedMLTree tree;
-                                        std::fstream out;
-                                        std::string name =
-                                            "/eval_lr" + std::to_string(learningRate)
-                                            + "_nT" + std::to_string(nt)
-                                            + "_mS" + std::to_string(minSplitSize)
-                                            + "_mD" + std::to_string(maxDepth)
-                                            + "_mL" + std::to_string(maxLeafCount)
-                                            + (type == SplitType::L2Laplace ? "_e" + std::to_string(epsilon) : "")
-                                            + (type == SplitType::Dart ? "_dr" + std::to_string(dropRate) : "")
-                                            + "_" + toString(type)
-                                            + "_" + std::to_string(i)
-                                            + ".txt";
+                                            //if (type == SplitType::Random)
+                                            //{
+                                            //    nt *= 10;
+                                            //}
 
-                                        out.open(SOLUTION_DIR + name, std::ios::trunc | std::ios::out);
+                                            BoostedMLTree tree;
 
-                                        if (out.is_open() == false)
-                                        {
-                                            std::cout << "failed to open file: " << SOLUTION_DIR + name << "  " /*<< std::strerror_s(errno)*/ << std::endl;
-                                            throw std::runtime_error(LOCATION);
-                                        }
+                                            tree.completedTrees = &completedTrees;
 
-                                        tree.mOut = &out;
+                                            std::fstream out;
+                                            std::string name =
+                                                "/eval" 
+                                                + (type == SplitType::L2Laplace || type == SplitType::L2
+                                                    ?"lr" + std::to_string(learningRate) : "")
+                                                //+ "_nT" + std::to_string(nt)
+                                                //+ "_mS" + std::to_string(minSplitSize)
+                                                //+ "_mD" + std::to_string(maxDepth)
+                                                //+ "_mL" + std::to_string(maxLeafCount)
+                                                + (type == SplitType::L2Laplace || type == SplitType::DLart
+                                                    ? "_e" + std::to_string(epsilon) : "")
+                                                + (type == SplitType::Dart || type == SplitType::DLart 
+                                                    ? "_dr" + std::to_string(dropRate) : "")
+                                                + "_" + toString(type)
+                                                + "_" + std::to_string(i)
+                                                + "_.txt";
 
-                                        tree.mPrng.SetSeed(prng.get<u64>());
+                                            out.open(SOLUTION_DIR + name, std::ios::trunc | std::ios::out);
 
-                                        tree.learn(trainingData[i], nt, learningRate, minSplitSize, maxDepth, maxLeafCount, type, epsilon, dropRate, &testData[i]);
+                                            if (out.is_open() == false)
+                                            {
+                                                std::cout << "failed to open file: " << SOLUTION_DIR + name << "  " /*<< std::strerror_s(errno)*/ << std::endl;
+                                                throw std::runtime_error(LOCATION);
+                                            }
 
-                                        masterMtx.lock();
-                                        master << name << "" << tree.mBest << std::flush;
-                                        masterMtx.unlock();
+                                            tree.mOut = &out;
 
-                                    });
+                                            tree.mPrng.SetSeed(prng.get<u64>());
+
+                                            tree.learn(
+                                                trainingData[i], 
+                                                nt, 
+                                                learningRate, 
+                                                minSplitSize, 
+                                                maxDepth, 
+                                                maxLeafCount, 
+                                                type, 
+                                                epsilon, 
+                                                dropRate, 
+                                                &testData[i]);
+
+                                            masterMtx.lock();
+                                            master << name << " " << tree.mBest << std::flush;
+                                            masterMtx.unlock();
+
+                                        });
+                                    }
                                 }
+
                             }
                         }
                     }
@@ -450,7 +479,7 @@ int main(int argc, char** argv)
     }
 
     std::mutex mtx;
-    u64 numThrds = std::min(u32(64), std::thread::hardware_concurrency());
+    u64 numThrds = std::thread::hardware_concurrency() - 3;
 
     std::vector<std::thread> thrds(numThrds);
     std::cout << numThrds << " threads working on " << funcs.size() << " tasks" << std::endl;
@@ -472,7 +501,7 @@ int main(int argc, char** argv)
                     mtx.unlock();
 
                     func();
-                    std::cout << "\r" << j++ << "done            " << std::flush;
+                    //std::cout << "\r" << j++ << "done            " << std::flush;
 
                 }
                 else
@@ -485,12 +514,41 @@ int main(int argc, char** argv)
         });
     }
 
+    double rem = 0;
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::time_point::clock::now();
+
+    u64 cc = 0;
+    while (completedTrees != totalTrees)
+    {
+        u64 c = completedTrees;
+        auto d = (c * 1.0 / totalTrees);
+        auto percent = d * 100.0;
+
+        if (c != cc)
+        {
+            cc = c;
+            auto now = std::chrono::system_clock::time_point::clock::now();
+            auto diff = now - start;
+            auto cur = std::chrono::duration_cast<std::chrono::seconds>(diff).count();
+            rem = (cur * (1 - d) / d);
+        }
+
+        u64 min = rem / 60;
+        u64 sec = (u64)rem % 60;
+
+        std::cout << "\r" << std::setprecision(2) << std::setw(4) << percent << "%     "
+            << completedTrees << " / " << totalTrees << " sub-trees    "
+            << min << ":" << std::setw(2) << std::setfill('0') << sec << " min remaining            " << std::flush;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+
     //std::cout << std::max(futures.size(), thrds.size()) << " threads at work" << std::endl;
     for (auto& thrd : thrds)
     {
         thrd.join();
     }
-    std::cout << "\r"<< funcs.size() << " done" << std::endl;
+    std::cout << "\r" << funcs.size() << " done" << std::endl;
 
     return 0;
 }
